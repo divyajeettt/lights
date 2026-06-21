@@ -261,7 +261,7 @@ backend.
 
 ## Reference Docs
 
-- Spotify app setup and Client ID: `https://developer.spotify.com/documentation/web-api/concepts/apps`
-- Spotify PKCE authorization flow: `https://developer.spotify.com/documentation/web-api/tutorials/code-pkce-flow`
-- Tuya Smart Home cloud project and Smart Life account linking: `https://developer.tuya.com/en/docs/iot/Platform_Configuration_smarthome?id=Kamcgamwoevrx`
-- Tuya cloud endpoints by data center: `https://developer.tuya.com/en/docs/iot/api-request?id=Ka4a8uuo1j4t4`
+- [Spotify app setup and Client ID](https://developer.spotify.com/documentation/web-api/concepts/apps)
+- [Spotify PKCE authorization flow](https://developer.spotify.com/documentation/web-api/tutorials/code-pkce-flow)
+- [Tuya Smart Home cloud project and Smart Life account linking](https://developer.tuya.com/en/docs/iot/Platform_Configuration_smarthome?id=Kamcgamwoevrx)
+- [Tuya cloud endpoints by data center](https://developer.tuya.com/en/docs/iot/api-request?id=Ka4a8uuo1j4t4)
