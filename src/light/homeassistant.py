@@ -1,7 +1,5 @@
 """Home Assistant light backend."""
 
-from __future__ import annotations
-
 from src.config import env
 from src.constants import HOME_ASSISTANT_LIGHT_TURN_ON_PATH
 from src.enums import (

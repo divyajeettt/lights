@@ -1,7 +1,5 @@
 """Spotify client factory helpers."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from src.config import env, validate_spotify_client_id

@@ -1,7 +1,5 @@
 """Album art color extraction."""
 
-from __future__ import annotations
-
 from io import BytesIO
 from typing import Any
 
@@ -80,29 +78,7 @@ def album_rgb_from_image_bytes(
     return max(candidates, key=lambda item: item[0])[1], False
 
 
-def dominant_rgb_from_image_bytes(
-    image_bytes: bytes,
-    colors: int = 16,
-    min_luminance: float | None = None,
-    min_saturation: float | None = None,
-    fallback_rgb: Color | None = None,
-) -> Color:
-    rgb, _ = album_rgb_from_image_bytes(
-        image_bytes,
-        colors=colors,
-        min_luminance=min_luminance,
-        min_saturation=min_saturation,
-        fallback_rgb=fallback_rgb,
-    )
-    return rgb
-
-
 def album_rgb_from_url(image_url: str) -> tuple[Color, bool]:
     response = requests.get(image_url, timeout=20)
     response.raise_for_status()
     return album_rgb_from_image_bytes(response.content)
-
-
-def dominant_rgb_from_url(image_url: str) -> Color:
-    rgb, _ = album_rgb_from_url(image_url)
-    return rgb

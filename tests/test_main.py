@@ -18,14 +18,6 @@ def run_cli(monkeypatch, tmp_path, args: list[str]) -> int:
     return cli.main()
 
 
-def test_main_returns_user_error_for_invalid_rgb(monkeypatch, tmp_path, capsys) -> None:
-    result = run_cli(monkeypatch, tmp_path, ["--rgb", "abc", "--dry-run"])
-
-    captured = capsys.readouterr()
-    assert result == 1
-    assert "Error: RGB color must look like #00aaff" in captured.err
-
-
 def test_main_preserves_config_error_exit(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setenv("POLL_SECONDS", "not-a-number")
 
@@ -36,64 +28,127 @@ def test_main_preserves_config_error_exit(monkeypatch, tmp_path, capsys) -> None
     assert "Configuration error: POLL_SECONDS must be a number" in captured.err
 
 
-def test_main_catches_runtime_error(monkeypatch, tmp_path, capsys) -> None:
-    def fail_image(_url: str) -> tuple[int, int, int]:
-        raise RuntimeError("image fetch failed")
+def test_main_rejects_non_positive_poll_before_watcher(
+    monkeypatch,
+    tmp_path,
+    capsys,
+) -> None:
+    calls: list[str] = []
 
-    monkeypatch.setattr(cli, "dominant_rgb_from_url", fail_image)
+    monkeypatch.setenv("POLL_SECONDS", "0")
+    monkeypatch.setattr(
+        cli,
+        "build_spotify",
+        lambda *, open_browser: calls.append("spotify"),
+    )
+    monkeypatch.setattr(cli, "run_watcher", lambda **_kwargs: calls.append("watcher"))
 
-    result = run_cli(monkeypatch, tmp_path, ["--image-url", "https://example.com/a.jpg"])
+    result = run_cli(monkeypatch, tmp_path, [])
 
     captured = capsys.readouterr()
     assert result == 1
-    assert "Error: image fetch failed" in captured.err
+    assert "Error: POLL_SECONDS must be greater than 0" in captured.err
+    assert calls == []
 
 
-def test_main_image_url_uses_one_shot_controller(monkeypatch, tmp_path, capsys) -> None:
+def test_main_default_run_calls_watcher(monkeypatch, tmp_path) -> None:
     controller = StubController()
+    calls = {}
 
-    monkeypatch.setattr(cli, "dominant_rgb_from_url", lambda _url: (1, 2, 3))
-    monkeypatch.setattr(cli, "build_light_controller", lambda dry_run: controller)
+    monkeypatch.setattr(cli, "build_spotify", lambda *, open_browser: "spotify")
+    monkeypatch.setattr(cli, "build_light_controller", lambda: controller)
 
-    result = run_cli(monkeypatch, tmp_path, ["--image-url", "https://example.com/a.jpg"])
+    def run_watcher(**kwargs):
+        calls.update(kwargs)
+        return 0
 
-    captured = capsys.readouterr()
+    monkeypatch.setattr(cli, "run_watcher", run_watcher)
+
+    result = run_cli(monkeypatch, tmp_path, [])
+
     assert result == 0
-    assert "#010203" in captured.out
-    assert controller.calls == [(1, 2, 3)]
+    assert calls == {
+        "spotify": "spotify",
+        "controller": controller,
+        "poll_seconds": 1.0,
+        "dry_run_once": False,
+    }
 
 
-def test_main_rgb_uses_one_shot_controller(monkeypatch, tmp_path) -> None:
+def test_main_dry_run_once_calls_watcher_without_controller(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    calls = {}
+
+    monkeypatch.setattr(cli, "build_spotify", lambda *, open_browser: "spotify")
+
+    def fail_build_light_controller():
+        raise AssertionError("dry-run-once should not build a light controller")
+
+    def run_watcher(**kwargs):
+        calls.update(kwargs)
+        return 0
+
+    monkeypatch.setattr(cli, "build_light_controller", fail_build_light_controller)
+    monkeypatch.setattr(cli, "run_watcher", run_watcher)
+
+    result = run_cli(monkeypatch, tmp_path, ["--dry-run-once"])
+
+    assert result == 0
+    assert calls == {
+        "spotify": "spotify",
+        "controller": None,
+        "poll_seconds": 1.0,
+        "dry_run_once": True,
+    }
+
+
+def test_main_set_rgb_uses_light_controller_without_spotify(monkeypatch, tmp_path) -> None:
     controller = StubController()
 
-    monkeypatch.setattr(cli, "build_light_controller", lambda dry_run: controller)
+    def fail_build_spotify(*, open_browser: bool):
+        raise AssertionError("--set-rgb should not build Spotify")
 
-    result = run_cli(monkeypatch, tmp_path, ["--rgb", "#00aaff"])
+    monkeypatch.setattr(cli, "build_spotify", fail_build_spotify)
+    monkeypatch.setattr(cli, "build_light_controller", lambda: controller)
+
+    result = run_cli(monkeypatch, tmp_path, ["--set-rgb", "#00aaff"])
 
     assert result == 0
     assert controller.calls == [(0, 170, 255)]
 
 
-def test_main_rejects_non_positive_poll_before_watcher(monkeypatch, tmp_path, capsys) -> None:
-    calls: list[str] = []
+def test_main_set_rgb_does_not_require_poll_seconds(monkeypatch, tmp_path) -> None:
+    controller = StubController()
 
-    def build_spotify(*, open_browser: bool):
-        calls.append("spotify")
-        return object()
+    monkeypatch.setenv("POLL_SECONDS", "not-a-number")
+    monkeypatch.setattr(cli, "build_light_controller", lambda: controller)
 
-    def run_watcher(**_kwargs):
-        calls.append("watcher")
-        return 0
+    result = run_cli(monkeypatch, tmp_path, ["--set-rgb", "#00aaff"])
 
-    monkeypatch.setattr(cli, "build_spotify", build_spotify)
-    monkeypatch.setattr(cli, "run_watcher", run_watcher)
+    assert result == 0
+    assert controller.calls == [(0, 170, 255)]
 
-    result = run_cli(monkeypatch, tmp_path, ["--poll-seconds", "0", "--dry-run"])
+
+def test_main_set_rgb_rejects_invalid_color(monkeypatch, tmp_path, capsys) -> None:
+    result = run_cli(monkeypatch, tmp_path, ["--set-rgb", "abc"])
 
     captured = capsys.readouterr()
     assert result == 1
-    assert "Error: --poll-seconds must be greater than 0" in captured.err
-    assert calls == []
+    assert "Error: RGB color must look like #00aaff" in captured.err
+
+
+def test_main_rejects_set_rgb_with_dry_run_once(monkeypatch, tmp_path, capsys) -> None:
+    result = run_cli(
+        monkeypatch,
+        tmp_path,
+        ["--set-rgb", "#00aaff", "--dry-run-once"],
+    )
+
+    captured = capsys.readouterr()
+    assert result == 1
+    assert "Error: --set-rgb cannot be combined with --dry-run-once" in captured.err
 
 
 def test_main_preserves_late_config_error_exit(monkeypatch, tmp_path, capsys) -> None:
@@ -102,7 +157,7 @@ def test_main_preserves_late_config_error_exit(monkeypatch, tmp_path, capsys) ->
 
     monkeypatch.setattr(cli, "build_spotify", fail_build_spotify)
 
-    result = run_cli(monkeypatch, tmp_path, ["--once", "--dry-run"])
+    result = run_cli(monkeypatch, tmp_path, ["--dry-run-once"])
 
     captured = capsys.readouterr()
     assert result == 2

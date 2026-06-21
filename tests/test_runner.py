@@ -1,6 +1,6 @@
 import pytest
 
-from src.runner import current_track_summary, run_watcher, send_or_log_rgb
+from src.runner import current_track_summary, run_watcher
 from src.spotify import SpotifyRateLimitError
 
 
@@ -36,16 +36,6 @@ def playback_payload(track_id: str = "track-1"):
     }
 
 
-def test_send_or_log_rgb_dry_run_skips_controller(capsys) -> None:
-    controller = StubController()
-
-    send_or_log_rgb(controller, (0, 170, 255), dry_run=True)
-
-    captured = capsys.readouterr()
-    assert "Dry run: would set bulb to #00aaff" in captured.out
-    assert controller.calls == []
-
-
 def test_run_watcher_returns_rate_limit_error_code_once(capsys) -> None:
     spotify = StubSpotify([SpotifyRateLimitError(3)])
 
@@ -53,8 +43,7 @@ def test_run_watcher_returns_rate_limit_error_code_once(capsys) -> None:
         spotify=spotify,
         controller=None,
         poll_seconds=0.0,
-        dry_run=True,
-        once=True,
+        dry_run_once=True,
     )
 
     captured = capsys.readouterr()
@@ -73,8 +62,7 @@ def test_run_watcher_applies_track_once_without_controller(capsys) -> None:
             spotify=spotify,
             controller=None,
             poll_seconds=0.0,
-            dry_run=True,
-            once=True,
+            dry_run_once=True,
         )
     finally:
         original.album_rgb_from_url = old_album_rgb_from_url
@@ -153,8 +141,7 @@ def test_run_watcher_invalid_payload_returns_no_work_once(monkeypatch, capsys) -
         spotify=spotify,
         controller=None,
         poll_seconds=0.0,
-        dry_run=True,
-        once=True,
+        dry_run_once=True,
     )
 
     captured = capsys.readouterr()
@@ -192,8 +179,7 @@ def test_run_watcher_skips_album_color_for_unchanged_track(monkeypatch) -> None:
             spotify=spotify,
             controller=controller,
             poll_seconds=0.0,
-            dry_run=False,
-            once=False,
+            dry_run_once=False,
         )
 
     assert album_calls == ["https://example.com/a.jpg"]
@@ -233,8 +219,7 @@ def test_run_watcher_retries_same_track_after_color_error(monkeypatch) -> None:
             spotify=spotify,
             controller=controller,
             poll_seconds=0.0,
-            dry_run=False,
-            once=False,
+            dry_run_once=False,
         )
 
     assert album_calls == 2
