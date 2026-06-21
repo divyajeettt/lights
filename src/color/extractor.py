@@ -9,6 +9,12 @@ import requests
 from PIL import Image
 
 from src.config import env, env_float
+from src.constants import (
+    DEFAULT_ALBUM_COLOR_FALLBACK,
+    DEFAULT_ALBUM_COLOR_MIN_LUMINANCE,
+    DEFAULT_ALBUM_COLOR_MIN_SATURATION,
+)
+from src.enums import AlbumColorEnvVar
 from src.models import Color
 
 from .utils import is_usable_album_color, parse_rgb
@@ -28,11 +34,19 @@ def album_rgb_from_image_bytes(
     fallback_rgb: Color | None = None,
 ) -> tuple[Color, bool]:
     if min_luminance is None:
-        min_luminance = env_float("ALBUM_COLOR_MIN_LUMINANCE", 0.08)
+        min_luminance = env_float(
+            AlbumColorEnvVar.MIN_LUMINANCE,
+            DEFAULT_ALBUM_COLOR_MIN_LUMINANCE,
+        )
     if min_saturation is None:
-        min_saturation = env_float("ALBUM_COLOR_MIN_SATURATION", 0.12)
+        min_saturation = env_float(
+            AlbumColorEnvVar.MIN_SATURATION,
+            DEFAULT_ALBUM_COLOR_MIN_SATURATION,
+        )
     if fallback_rgb is None:
-        fallback_rgb = parse_rgb(env("ALBUM_COLOR_FALLBACK", "#ff6600"))
+        fallback_rgb = parse_rgb(
+            env(AlbumColorEnvVar.FALLBACK, DEFAULT_ALBUM_COLOR_FALLBACK)
+        )
 
     image = Image.open(BytesIO(image_bytes)).convert("RGBA")
     image.thumbnail((160, 160), Image.Resampling.LANCZOS)

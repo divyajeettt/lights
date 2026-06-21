@@ -6,6 +6,8 @@ import sys
 
 from src.color import dominant_rgb_from_url, parse_rgb, rgb_hex
 from src.config import ConfigError, env_float, load_dotenv
+from src.constants import DEFAULT_POLL_SECONDS
+from src.enums import AppEnvVar
 from src.light import build_light_controller, print_tuya_spec
 from src.runner import run_watcher, send_or_log_rgb
 from src.spotify import build_spotify
@@ -29,7 +31,7 @@ def main() -> int:
     parser.add_argument(
         "--poll-seconds",
         type=float,
-        default=env_float("POLL_SECONDS", 1.0),
+        default=env_float(AppEnvVar.POLL_SECONDS, DEFAULT_POLL_SECONDS),
         help="Spotify polling interval in seconds. Default: 1.",
     )
     parser.add_argument(

@@ -42,15 +42,15 @@ def current_track_summary(
 
     item = playback.get("item") or {}
     if item.get("type") != "track":
-        if not quiet:
-            print(f"Currently playing item is not a track: {item.get('type')}")
-        return None
+        if quiet:
+            return None
+        print(f"Currently playing item is not a track: {item.get('type')}")
 
     track_id = item.get("id") or item.get("uri")
     if not track_id:
-        if not quiet:
-            print("Currently playing track has no Spotify ID.")
-        return None
+        if quiet:
+            return None
+        print("Currently playing track has no Spotify ID.")
 
     return TrackSummary(track_id=track_id, label=track_label(item), item=item)
 
