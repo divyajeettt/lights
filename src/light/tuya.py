@@ -1,7 +1,5 @@
 """Tuya Cloud light backend."""
 
-from __future__ import annotations
-
 import hashlib
 import hmac
 import json
@@ -58,10 +56,7 @@ def json_dumps(data: Any) -> str:
 
 class TuyaCloudClient:
     def __init__(self) -> None:
-        self.endpoint = env(
-            TuyaEnvVar.ENDPOINT,
-            DEFAULT_TUYA_ENDPOINT,
-        ).rstrip("/")
+        self.endpoint = env(TuyaEnvVar.ENDPOINT, DEFAULT_TUYA_ENDPOINT).rstrip("/")
         self.access_id = env(TuyaEnvVar.ACCESS_ID, required=True)
         self.access_secret = env(TuyaEnvVar.ACCESS_SECRET, required=True)
         self.device_id = env(TuyaEnvVar.DEVICE_ID, required=True)
@@ -272,8 +267,7 @@ def infer_tuya_light_spec(specification: dict[str, Any]) -> TuyaLightSpec:
                 break
     if not color_code:
         raise ConfigError(
-            "Could not infer Tuya color command. Run --print-tuya-spec and "
-            "set TUYA_COLOR_CODE."
+            "Could not infer Tuya color command. Set TUYA_COLOR_CODE in .env."
         )
 
     values = _parse_values(by_code.get(color_code, {}).get(TuyaSpecField.VALUES))
@@ -371,12 +365,3 @@ class TuyaCloudLightController(LightController):
             }
         )
         self.client.send_commands(commands)
-
-
-def print_tuya_spec() -> None:
-    client = TuyaCloudClient()
-    spec = client.device_specification()
-    print(json.dumps(spec, indent=2, sort_keys=True))
-    inferred = infer_tuya_light_spec(spec)
-    print("\nInferred light control:")
-    print(json.dumps(inferred.__dict__, indent=2, sort_keys=True))

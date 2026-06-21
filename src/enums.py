@@ -1,7 +1,5 @@
 """Closed string vocabularies used across integrations."""
 
-from __future__ import annotations
-
 from enum import StrEnum
 
 

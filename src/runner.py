@@ -1,14 +1,12 @@
 """Application orchestration helpers."""
 
-from __future__ import annotations
-
 import sys
 import time
 from typing import Any
 
 from src.color import album_rgb_from_url, rgb_hex
 from src.light import LightController
-from src.models import Color, TrackColor, TrackSummary
+from src.models import TrackColor, TrackSummary
 from src.spotify import SpotifyClient, SpotifyRateLimitError
 
 
@@ -69,46 +67,24 @@ def track_color_from_summary(summary: TrackSummary) -> TrackColor | None:
     )
 
 
-def current_track_color(
-    spotify: SpotifyClient,
-    quiet: bool = False,
-) -> TrackColor | None:
-    summary = current_track_summary(spotify, quiet=quiet)
-    if not summary:
-        return None
-    return track_color_from_summary(summary)
-
-
-def send_or_log_rgb(
-    controller: LightController | None,
-    rgb: Color,
-    dry_run: bool,
-) -> None:
-    if dry_run:
-        print(f"Dry run: would set bulb to {rgb_hex(rgb)}")
-        return
-    if controller:
-        controller.set_rgb(rgb)
-
-
 def apply_track_color(
     controller: LightController | None,
     track: TrackColor,
-    dry_run: bool,
 ) -> None:
     suffix = " (fallback color)" if track.fallback_used else ""
     print(f"{track.label} -> {rgb_hex(track.rgb)}{suffix}")
-    send_or_log_rgb(controller, track.rgb, dry_run)
-    if not dry_run:
-        print("Bulb color updated.")
+    if controller is None:
+        print(f"Dry run: would set bulb to {rgb_hex(track.rgb)}")
+        return
+    controller.set_rgb(track.rgb)
+    print("Bulb color updated.")
 
 
 def run_watcher(
     spotify: SpotifyClient,
     controller: LightController | None,
     poll_seconds: float,
-    dry_run: bool,
-    once: bool,
+    dry_run_once: bool,
 ) -> int:
     last_track_id = None
 
@@ -116,22 +92,21 @@ def run_watcher(
         try:
             summary = current_track_summary(spotify)
             if summary and summary.track_id != last_track_id:
-                track = track_color_from_summary(summary)
-                if track:
-                    apply_track_color(controller, track, dry_run)
+                if (track := track_color_from_summary(summary)):
+                    apply_track_color(controller, track)
                 last_track_id = summary.track_id
         except SpotifyRateLimitError as exc:
             print(
                 f"Spotify rate limited the request; sleeping {exc.retry_after}s.",
                 file=sys.stderr,
             )
-            if once:
+            if dry_run_once:
                 return 1
             time.sleep(exc.retry_after)
             continue
         except Exception as exc:
             # Keep the watcher alive across transient API failures.
             print(f"Error: {exc}", file=sys.stderr)
-        if once:
+        if dry_run_once:
             return 0
         time.sleep(poll_seconds)

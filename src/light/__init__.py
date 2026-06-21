@@ -8,7 +8,6 @@ from .tuya import (
     TuyaCloudLightController,
     TuyaLightSpec,
     infer_tuya_light_spec,
-    print_tuya_spec,
 )
 
 __all__ = [
@@ -19,5 +18,4 @@ __all__ = [
     "TuyaLightSpec",
     "build_light_controller",
     "infer_tuya_light_spec",
-    "print_tuya_spec",
 ]

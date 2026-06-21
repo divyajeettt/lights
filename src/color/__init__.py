@@ -3,8 +3,6 @@
 from .extractor import (
     album_rgb_from_image_bytes,
     album_rgb_from_url,
-    dominant_rgb_from_image_bytes,
-    dominant_rgb_from_url,
     image_pixel_data,
 )
 from .utils import (
@@ -21,8 +19,6 @@ __all__ = [
     "HsvCommand",
     "album_rgb_from_image_bytes",
     "album_rgb_from_url",
-    "dominant_rgb_from_image_bytes",
-    "dominant_rgb_from_url",
     "image_pixel_data",
     "is_usable_album_color",
     "parse_rgb",

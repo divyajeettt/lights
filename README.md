@@ -174,19 +174,13 @@ Configure one light backend:
 Check Spotify and album-art color extraction without touching the bulb:
 
 ```sh
-python main.py --once --dry-run
-```
-
-Check Tuya device access and inferred color command names:
-
-```sh
-python main.py --print-tuya-spec
+python main.py --dry-run-once
 ```
 
 Test direct bulb control:
 
 ```sh
-python main.py --rgb '#00aaff'
+python main.py --set-rgb '#00aaff'
 ```
 
 ## Run
@@ -194,7 +188,7 @@ python main.py --rgb '#00aaff'
 Test Spotify and color extraction without changing the bulb:
 
 ```sh
-python main.py --once --dry-run
+python main.py --dry-run-once
 ```
 
 Run continuously:
@@ -209,12 +203,6 @@ again. Tune the normal polling interval in `.env`:
 
 ```env
 POLL_SECONDS=1
-```
-
-Or override it from the command line:
-
-```sh
-python main.py --poll-seconds 2
 ```
 
 The polling interval must be greater than `0`.
@@ -240,16 +228,10 @@ manually switch the bulb to another mode, set this in `.env`:
 TUYA_ENSURE_ON_COLOR_MODE=true
 ```
 
-Print the Tuya device specification to verify command names:
-
-```sh
-python main.py --print-tuya-spec
-```
-
 Set a manual color to test bulb control:
 
 ```sh
-python main.py --rgb '#00aaff'
+python main.py --set-rgb '#00aaff'
 ```
 
 On the first run, the script opens Spotify login in your browser and stores a
@@ -263,20 +245,18 @@ out instead of blocking forever.
 
 The app starts in `main.py`.
 
-1. It builds the CLI parser and parses flags such as `--dry-run`, `--once`,
-   `--rgb`, and `--print-tuya-spec`.
+1. It builds the CLI parser and parses flags such as `--dry-run-once` and
+   `--set-rgb`.
 2. It loads `.env` values with `load_dotenv()` and resolves environment-backed
    defaults such as `POLL_SECONDS`.
-3. It validates runtime options, including requiring `--poll-seconds` to be
+3. It validates runtime options, including requiring `POLL_SECONDS` to be
    greater than `0`.
 4. For direct actions:
-   - `--print-tuya-spec` prints the Tuya device specification.
-   - `--image-url` extracts a dominant color from a given image URL.
-   - `--rgb` sends a manual RGB color to the configured light backend.
+   - `--set-rgb` sends a manual RGB color to the configured light backend.
 5. For normal watcher mode:
    - `build_spotify()` creates the Spotify client.
    - `build_light_controller()` creates the configured light backend unless
-     `--dry-run` is enabled.
+     `--dry-run-once` is enabled.
    - `run_watcher()` polls Spotify, resolves album-art color only when the
      track changes, and updates the bulb.
 
@@ -396,7 +376,6 @@ Light backend abstraction and implementations.
   - Tuya signing and API client
   - Tuya device specification inference
   - Tuya light controller implementation
-  - `print_tuya_spec()`
 - `src/light/homeassistant.py`
   - Home Assistant light controller implementation
 
@@ -458,10 +437,10 @@ credentials. It covers:
 - Spotify helper behavior such as retry parsing, token persistence, request
   error handling, refresh-on-401 flow, rate-limit handling, private token-cache
   writes, and OAuth callback timeout/cleanup
-- runner dry-run behavior, invalid playback payloads, once-mode watcher flow,
-  and unchanged-track skipping
-- CLI behavior for one-shot commands, malformed user input, and invalid polling
-  intervals
+- runner dry-run-once behavior, invalid playback payloads, and unchanged-track
+  skipping
+- CLI behavior for manual RGB commands, malformed user input, and invalid
+  polling intervals
 - light backend factory selection
 - Tuya spec inference and Tuya command payload generation
 
