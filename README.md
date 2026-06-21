@@ -173,19 +173,19 @@ Configure one light backend:
 Check Spotify and album-art color extraction without touching the bulb:
 
 ```sh
-python spotify_album_bulb.py --once --dry-run
+python main.py --once --dry-run
 ```
 
 Check Tuya device access and inferred color command names:
 
 ```sh
-python spotify_album_bulb.py --print-tuya-spec
+python main.py --print-tuya-spec
 ```
 
 Test direct bulb control:
 
 ```sh
-python spotify_album_bulb.py --rgb '#00aaff'
+python main.py --rgb '#00aaff'
 ```
 
 ## Run
@@ -193,13 +193,13 @@ python spotify_album_bulb.py --rgb '#00aaff'
 Test Spotify and color extraction without changing the bulb:
 
 ```sh
-python spotify_album_bulb.py --once --dry-run
+python main.py --once --dry-run
 ```
 
 Run continuously:
 
 ```sh
-python spotify_album_bulb.py
+python main.py
 ```
 
 By default, Spotify is polled every 1 second. If Spotify returns a rate-limit
@@ -213,7 +213,7 @@ POLL_SECONDS=1
 Or override it from the command line:
 
 ```sh
-python spotify_album_bulb.py --poll-seconds 2
+python main.py --poll-seconds 2
 ```
 
 The script ignores album-art colors that are too dark or gray to produce useful
@@ -240,13 +240,13 @@ TUYA_ENSURE_ON_COLOR_MODE=true
 Print the Tuya device specification to verify command names:
 
 ```sh
-python spotify_album_bulb.py --print-tuya-spec
+python main.py --print-tuya-spec
 ```
 
 Set a manual color to test bulb control:
 
 ```sh
-python spotify_album_bulb.py --rgb '#00aaff'
+python main.py --rgb '#00aaff'
 ```
 
 On the first run, the script opens Spotify login in your browser and stores a
