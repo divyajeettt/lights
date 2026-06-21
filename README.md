@@ -252,6 +252,25 @@ python spotify_album_bulb.py --rgb '#00aaff'
 On the first run, the script opens Spotify login in your browser and stores a
 refresh token under `.cache/spotify_token.json`.
 
+## Tests
+
+Run the test suite from the project virtual environment:
+
+```sh
+.venv/bin/python -m pytest tests
+```
+
+Current test coverage is offline-only and does not require Spotify or Tuya
+credentials. It covers:
+
+- color parsing, filtering, HSV conversion, and album-art fallback behavior
+- config parsing and Spotify client ID validation
+- Spotify helper behavior such as retry parsing, token persistence, request
+  error handling, refresh-on-401 flow, and rate-limit handling
+- runner dry-run behavior and once-mode watcher flow
+- light backend factory selection
+- Tuya spec inference and Tuya command payload generation
+
 ## Notes
 
 If the Wipro Next Smart Home app cannot be linked to a Tuya IoT project, direct
