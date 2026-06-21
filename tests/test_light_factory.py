@@ -10,7 +10,6 @@ from src.light import (
 
 
 def test_build_light_controller_builds_tuya_backend(monkeypatch) -> None:
-    monkeypatch.setenv("LIGHT_BACKEND", "tuya_cloud")
     monkeypatch.setenv("TUYA_DEVICE_ID", "device-1")
     sentinel = object()
     monkeypatch.setattr(
@@ -22,22 +21,7 @@ def test_build_light_controller_builds_tuya_backend(monkeypatch) -> None:
     assert build_light_controller() is sentinel
 
 
-def test_build_light_controller_builds_home_assistant_backend(
-    monkeypatch,
-) -> None:
-    monkeypatch.setenv("LIGHT_BACKEND", "homeassistant")
-    sentinel = object()
-    monkeypatch.setattr(
-        light_factory_module,
-        "HomeAssistantLightController",
-        lambda: sentinel,
-    )
-
-    assert build_light_controller() is sentinel
-
-
 def test_build_light_controller_builds_tuya_group(monkeypatch) -> None:
-    monkeypatch.setenv("LIGHT_BACKEND", "tuya_cloud")
     monkeypatch.setenv("TUYA_DEVICE_IDS", "device-1,device-2")
     monkeypatch.setenv("TUYA_DEVICE_LABELS", "desk,floor")
     labels = []
@@ -75,7 +59,6 @@ def test_build_light_controller_builds_tuya_group(monkeypatch) -> None:
 
 
 def test_build_light_controller_defaults_tuya_labels(monkeypatch) -> None:
-    monkeypatch.setenv("LIGHT_BACKEND", "tuya_cloud")
     monkeypatch.setenv("TUYA_DEVICE_IDS", "device-1,device-2")
     labels = []
 
@@ -110,7 +93,6 @@ def test_build_light_controller_defaults_tuya_labels(monkeypatch) -> None:
 
 
 def test_build_light_controller_rejects_mismatched_tuya_labels(monkeypatch) -> None:
-    monkeypatch.setenv("LIGHT_BACKEND", "tuya_cloud")
     monkeypatch.setenv("TUYA_DEVICE_IDS", "device-1,device-2")
     monkeypatch.setenv("TUYA_DEVICE_LABELS", "desk")
 
@@ -119,16 +101,6 @@ def test_build_light_controller_rejects_mismatched_tuya_labels(monkeypatch) -> N
 
 
 def test_configured_light_count_uses_tuya_device_ids(monkeypatch) -> None:
-    monkeypatch.setenv("LIGHT_BACKEND", "tuya_cloud")
     monkeypatch.setenv("TUYA_DEVICE_IDS", "device-1,device-2")
 
     assert configured_light_count() == 2
-
-
-def test_build_light_controller_rejects_invalid_backend(
-    monkeypatch,
-) -> None:
-    monkeypatch.setenv("LIGHT_BACKEND", "invalid")
-
-    with pytest.raises(ConfigError):
-        build_light_controller()
