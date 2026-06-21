@@ -13,13 +13,11 @@ from typing import Any
 
 import requests
 
-from src.color.utils import rgb_to_hsv_command
-from src.config import ConfigError
-from src.config import env
-from src.config import env_bool
-from src.config import env_float
-from src.light.base import LightController
+from src.color import rgb_to_hsv_command
+from src.config import ConfigError, env, env_bool, env_float
 from src.models import Color
+
+from .base import LightController
 
 
 def now_ms() -> int:
@@ -67,14 +65,16 @@ class TuyaCloudClient:
         url_path = self._make_url_path(path, params)
         content_hash = hashlib.sha256(body.encode("utf-8")).hexdigest()
         string_to_sign = f"{method.upper()}\n{content_hash}\n\n{url_path}"
-        sign_input = (
-            f"{self.access_id}{access_token}{timestamp}{nonce}{string_to_sign}"
+        sign_input = f"{self.access_id}{access_token}{timestamp}{nonce}{string_to_sign}"
+        sign = (
+            hmac.new(
+                self.access_secret.encode("utf-8"),
+                sign_input.encode("utf-8"),
+                hashlib.sha256,
+            )
+            .hexdigest()
+            .upper()
         )
-        sign = hmac.new(
-            self.access_secret.encode("utf-8"),
-            sign_input.encode("utf-8"),
-            hashlib.sha256,
-        ).hexdigest().upper()
         headers = {
             "client_id": self.access_id,
             "sign": sign,
@@ -111,9 +111,7 @@ class TuyaCloudClient:
         except ValueError:
             data = {"success": False, "msg": response.text}
         if response.status_code >= 400 or not data.get("success", False):
-            raise RuntimeError(
-                f"Tuya API failed: HTTP {response.status_code}: {data}"
-            )
+            raise RuntimeError(f"Tuya API failed: HTTP {response.status_code}: {data}")
         return data.get("result")
 
     def get_token(self) -> str:
@@ -248,9 +246,7 @@ def infer_tuya_light_spec(specification: dict[str, Any]) -> TuyaLightSpec:
 
     value_format = format_override or "object"
     if value_format not in {"auto", "object", "string"}:
-        raise ConfigError(
-            "TUYA_COLOR_VALUE_FORMAT must be auto, object, or string"
-        )
+        raise ConfigError("TUYA_COLOR_VALUE_FORMAT must be auto, object, or string")
     if value_format == "auto":
         value_format = "object"
 

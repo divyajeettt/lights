@@ -6,14 +6,10 @@ import sys
 import time
 from typing import Any
 
-from src.color.extractor import album_rgb_from_url
-from src.color.utils import rgb_hex
-from src.light.base import LightController
-from src.models import Color
-from src.models import TrackColor
-from src.models import TrackSummary
-from src.spotify.client import SpotifyClient
-from src.spotify.client import SpotifyRateLimitError
+from src.color import album_rgb_from_url, rgb_hex
+from src.light import LightController
+from src.models import Color, TrackColor, TrackSummary
+from src.spotify import SpotifyClient, SpotifyRateLimitError
 
 
 def best_album_image(item: dict[str, Any]) -> str | None:
@@ -29,8 +25,7 @@ def best_album_image(item: dict[str, Any]) -> str | None:
 def track_label(item: dict[str, Any]) -> str:
     name = item.get("name", "Unknown track")
     artists = ", ".join(
-        artist.get("name", "Unknown artist")
-        for artist in item.get("artists", [])
+        artist.get("name", "Unknown artist") for artist in item.get("artists", [])
     )
     return f"{name} - {artists}" if artists else name
 
@@ -125,8 +120,7 @@ def run_watcher(
                 last_track_id = track.track_id
         except SpotifyRateLimitError as exc:
             print(
-                f"Spotify rate limited the request; sleeping "
-                f"{exc.retry_after}s.",
+                f"Spotify rate limited the request; sleeping {exc.retry_after}s.",
                 file=sys.stderr,
             )
             if once:

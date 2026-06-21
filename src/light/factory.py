@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from src.config import ConfigError
-from src.config import env
-from src.light.base import LightController
-from src.light.homeassistant import HomeAssistantLightController
-from src.light.tuya import TuyaCloudLightController
+from src.config import ConfigError, env
+
+from .base import LightController
+from .homeassistant import HomeAssistantLightController
+from .tuya import TuyaCloudLightController
 
 
 def build_light_controller(dry_run: bool) -> LightController | None:

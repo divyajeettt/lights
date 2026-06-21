@@ -3,7 +3,7 @@ from io import BytesIO
 import pytest
 from PIL import Image
 
-from src.color.extractor import album_rgb_from_image_bytes
+from src.color import album_rgb_from_image_bytes
 
 
 def make_png_bytes(

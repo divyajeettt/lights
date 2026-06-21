@@ -2,7 +2,7 @@ import pytest
 
 import src.light.factory as light_factory_module
 from src.config import ConfigError
-from src.light.factory import build_light_controller
+from src.light import build_light_controller
 
 
 def test_build_light_controller_returns_none_for_dry_run() -> None:

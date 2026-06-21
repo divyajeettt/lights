@@ -1,4 +1,4 @@
-from src.light.tuya import infer_tuya_light_spec
+from src.light import infer_tuya_light_spec
 
 
 def test_infer_tuya_light_spec_prefers_colour_data_v2(monkeypatch) -> None:
@@ -20,8 +20,7 @@ def test_infer_tuya_light_spec_prefers_colour_data_v2(monkeypatch) -> None:
             },
             {
                 "code": "colour_data_v2",
-                "values": '{"h":{"max":360},"s":{"max":1000},'
-                '"v":{"max":1000}}',
+                "values": '{"h":{"max":360},"s":{"max":1000},' '"v":{"max":1000}}',
             },
         ]
     }

@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from src.config import env
-from src.light.base import LightController
 from src.models import Color
-from src.spotify.client import request_json
+from src.spotify import request_json
+
+from .base import LightController
 
 
 class HomeAssistantLightController(LightController):

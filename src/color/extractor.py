@@ -8,11 +8,10 @@ from typing import Any
 import requests
 from PIL import Image
 
-from src.color.utils import is_usable_album_color
-from src.color.utils import parse_rgb
-from src.config import env
-from src.config import env_float
+from src.config import env, env_float
 from src.models import Color
+
+from .utils import is_usable_album_color, parse_rgb
 
 
 def image_pixel_data(image: Image.Image) -> Any:

@@ -1,8 +1,6 @@
 import pytest
 
-from src.config import ConfigError
-from src.config import env_bool
-from src.config import validate_spotify_client_id
+from src.config import ConfigError, env_bool, validate_spotify_client_id
 
 
 def test_env_bool_parses_true_value(monkeypatch) -> None:

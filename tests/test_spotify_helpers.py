@@ -3,10 +3,12 @@ from pathlib import Path
 import pytest
 
 import src.spotify.client as spotify_client_module
-from src.spotify.client import SpotifyClient
-from src.spotify.client import parse_retry_after
-from src.spotify.client import request_json
-from src.spotify.factory import build_spotify
+from src.spotify import (
+    SpotifyClient,
+    build_spotify,
+    parse_retry_after,
+    request_json,
+)
 
 
 def test_parse_retry_after_defaults_to_five_seconds() -> None:
@@ -108,7 +110,10 @@ def test_currently_playing_refreshes_after_401(monkeypatch, tmp_path) -> None:
         calls["count"] += 1
         if calls["count"] == 1:
             return StubResponse(401, text="expired")
-        return StubResponse(200, {"is_playing": True, "item": {"type": "track"}})
+        return StubResponse(
+            200,
+            {"is_playing": True, "item": {"type": "track"}},
+        )
 
     monkeypatch.setattr(spotify_client_module.requests, "get", fake_get)
     monkeypatch.setattr(

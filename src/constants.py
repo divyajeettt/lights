@@ -2,9 +2,7 @@
 
 SPOTIFY_AUTH_URL = "https://accounts.spotify.com/authorize"
 SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
-SPOTIFY_CURRENTLY_PLAYING_URL = (
-    "https://api.spotify.com/v1/me/player/currently-playing"
-)
+SPOTIFY_CURRENTLY_PLAYING_URL = "https://api.spotify.com/v1/me/player/currently-playing"
 SPOTIFY_SCOPE = "user-read-currently-playing user-read-playback-state"
 
 DEFAULT_SPOTIFY_REDIRECT_URI = "http://127.0.0.1:8888/callback"
