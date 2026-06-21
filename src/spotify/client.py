@@ -98,12 +98,10 @@ class SpotifyClient:
         client_id: str,
         redirect_uri: str,
         cache_file: Path,
-        open_browser: bool = True,
     ) -> None:
         self.client_id = client_id
         self.redirect_uri = redirect_uri
         self.cache_file = cache_file
-        self.open_browser = open_browser
         self.token: dict[str, Any] = self._load_token()
 
     def _load_token(self) -> dict[str, Any]:
@@ -213,8 +211,7 @@ class SpotifyClient:
 
         print("Open this URL to authorize Spotify:")
         print(auth_url)
-        if self.open_browser:
-            webbrowser.open(auth_url)
+        webbrowser.open(auth_url)
 
         deadline = time.monotonic() + SPOTIFY_CALLBACK_TIMEOUT_SECONDS
         try:

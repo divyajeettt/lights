@@ -59,7 +59,7 @@ def main() -> int:
         poll_seconds = _validated_poll_seconds(
             env_float(AppEnvVar.POLL_SECONDS, DEFAULT_POLL_SECONDS)
         )
-        spotify = build_spotify(open_browser=True)
+        spotify = build_spotify()
         controller = None if args.dry_run_once else build_light_controller()
         return run_watcher(
             spotify=spotify,
