@@ -29,7 +29,6 @@ def test_spotify_client_save_token_preserves_refresh_token(tmp_path) -> None:
         client_id=TEST_SPOTIFY_CLIENT_ID,
         redirect_uri=DEFAULT_SPOTIFY_REDIRECT_URI,
         cache_file=cache_file,
-        open_browser=False,
     )
     client.token = {SpotifyTokenField.REFRESH_TOKEN: "refresh-123"}
 
@@ -50,7 +49,6 @@ def test_spotify_client_save_token_writes_private_cache_file(tmp_path) -> None:
         client_id=TEST_SPOTIFY_CLIENT_ID,
         redirect_uri=DEFAULT_SPOTIFY_REDIRECT_URI,
         cache_file=cache_file,
-        open_browser=False,
     )
 
     client._save_token(
@@ -77,7 +75,6 @@ def test_spotify_client_save_token_replace_failure_keeps_existing_cache(
         client_id=TEST_SPOTIFY_CLIENT_ID,
         redirect_uri=DEFAULT_SPOTIFY_REDIRECT_URI,
         cache_file=cache_file,
-        open_browser=False,
     )
 
     def fail_replace(*args, **kwargs):
@@ -106,12 +103,11 @@ def test_build_spotify_uses_env_values(monkeypatch) -> None:
     )
     monkeypatch.setenv(SpotifyEnvVar.CACHE_FILE, TEST_SPOTIFY_CACHE_FILE)
 
-    client = build_spotify(open_browser=False)
+    client = build_spotify()
 
     assert client.client_id == TEST_SPOTIFY_CLIENT_ID
     assert client.redirect_uri == TEST_SPOTIFY_REDIRECT_URI
     assert client.cache_file == Path(TEST_SPOTIFY_CACHE_FILE)
-    assert client.open_browser is False
 
 
 class StubResponse:
@@ -175,6 +171,7 @@ def test_authorize_closes_callback_server_after_success(monkeypatch, tmp_path) -
 
     token_urlsafe_values = iter(["verifier-123", "state-123"])
     monkeypatch.setattr(spotify_client_module, "HTTPServer", FakeServer)
+    monkeypatch.setattr(spotify_client_module.webbrowser, "open", lambda _url: True)
     monkeypatch.setattr(
         spotify_client_module.secrets,
         "token_urlsafe",
@@ -193,7 +190,6 @@ def test_authorize_closes_callback_server_after_success(monkeypatch, tmp_path) -
         client_id=TEST_SPOTIFY_CLIENT_ID,
         redirect_uri=TEST_SPOTIFY_REDIRECT_URI,
         cache_file=cache_file,
-        open_browser=False,
     )
 
     client._authorize()
@@ -220,11 +216,11 @@ def test_authorize_times_out_and_closes_callback_server(monkeypatch, tmp_path) -
 
     monkeypatch.setattr(spotify_client_module, "HTTPServer", FakeServer)
     monkeypatch.setattr(spotify_client_module, "SPOTIFY_CALLBACK_TIMEOUT_SECONDS", 0)
+    monkeypatch.setattr(spotify_client_module.webbrowser, "open", lambda _url: True)
     client = SpotifyClient(
         client_id=TEST_SPOTIFY_CLIENT_ID,
         redirect_uri=TEST_SPOTIFY_REDIRECT_URI,
         cache_file=cache_file,
-        open_browser=False,
     )
 
     with pytest.raises(RuntimeError, match="timed out"):
@@ -239,7 +235,6 @@ def test_currently_playing_refreshes_after_401(monkeypatch, tmp_path) -> None:
         client_id=TEST_SPOTIFY_CLIENT_ID,
         redirect_uri=DEFAULT_SPOTIFY_REDIRECT_URI,
         cache_file=cache_file,
-        open_browser=False,
     )
     client.token = {
         SpotifyTokenField.ACCESS_TOKEN: "stale-token",
@@ -276,7 +271,6 @@ def test_currently_playing_raises_rate_limit(monkeypatch, tmp_path) -> None:
         client_id=TEST_SPOTIFY_CLIENT_ID,
         redirect_uri=DEFAULT_SPOTIFY_REDIRECT_URI,
         cache_file=cache_file,
-        open_browser=False,
     )
     client.token = {
         SpotifyTokenField.ACCESS_TOKEN: "token",

@@ -39,7 +39,7 @@ def test_main_rejects_non_positive_poll_before_watcher(
     monkeypatch.setattr(
         cli,
         "build_spotify",
-        lambda *, open_browser: calls.append("spotify"),
+        lambda: calls.append("spotify"),
     )
     monkeypatch.setattr(cli, "run_watcher", lambda **_kwargs: calls.append("watcher"))
 
@@ -55,7 +55,7 @@ def test_main_default_run_calls_watcher(monkeypatch, tmp_path) -> None:
     controller = StubController()
     calls = {}
 
-    monkeypatch.setattr(cli, "build_spotify", lambda *, open_browser: "spotify")
+    monkeypatch.setattr(cli, "build_spotify", lambda: "spotify")
     monkeypatch.setattr(cli, "build_light_controller", lambda: controller)
 
     def run_watcher(**kwargs):
@@ -81,7 +81,7 @@ def test_main_dry_run_once_calls_watcher_without_controller(
 ) -> None:
     calls = {}
 
-    monkeypatch.setattr(cli, "build_spotify", lambda *, open_browser: "spotify")
+    monkeypatch.setattr(cli, "build_spotify", lambda: "spotify")
 
     def fail_build_light_controller():
         raise AssertionError("dry-run-once should not build a light controller")
@@ -107,7 +107,7 @@ def test_main_dry_run_once_calls_watcher_without_controller(
 def test_main_set_rgb_uses_light_controller_without_spotify(monkeypatch, tmp_path) -> None:
     controller = StubController()
 
-    def fail_build_spotify(*, open_browser: bool):
+    def fail_build_spotify():
         raise AssertionError("--set-rgb should not build Spotify")
 
     monkeypatch.setattr(cli, "build_spotify", fail_build_spotify)
@@ -152,7 +152,7 @@ def test_main_rejects_set_rgb_with_dry_run_once(monkeypatch, tmp_path, capsys) -
 
 
 def test_main_preserves_late_config_error_exit(monkeypatch, tmp_path, capsys) -> None:
-    def fail_build_spotify(*, open_browser: bool):
+    def fail_build_spotify():
         raise ConfigError("missing spotify client")
 
     monkeypatch.setattr(cli, "build_spotify", fail_build_spotify)

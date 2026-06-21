@@ -9,7 +9,7 @@ from src.enums import SpotifyEnvVar
 from .client import SpotifyClient
 
 
-def build_spotify(open_browser: bool) -> SpotifyClient:
+def build_spotify() -> SpotifyClient:
     client_id = env(SpotifyEnvVar.CLIENT_ID, required=True)
     validate_spotify_client_id(client_id)
     redirect_uri = env(SpotifyEnvVar.REDIRECT_URI, DEFAULT_SPOTIFY_REDIRECT_URI)
@@ -18,5 +18,4 @@ def build_spotify(open_browser: bool) -> SpotifyClient:
         client_id,
         redirect_uri,
         cache_file,
-        open_browser=open_browser,
     )
