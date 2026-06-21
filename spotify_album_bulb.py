@@ -23,80 +23,25 @@ from typing import Any
 import requests
 from PIL import Image
 
-
-SPOTIFY_AUTH_URL = "https://accounts.spotify.com/authorize"
-SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
-SPOTIFY_CURRENTLY_PLAYING_URL = "https://api.spotify.com/v1/me/player/currently-playing"
-SPOTIFY_SCOPE = "user-read-currently-playing user-read-playback-state"
-
-
-class ConfigError(RuntimeError):
-    pass
-
-
 class SpotifyRateLimitError(RuntimeError):
     def __init__(self, retry_after: int) -> None:
-        super().__init__(f"Spotify rate limited the request; retrying after {retry_after}s")
+        super().__init__(
+            f"Spotify rate limited the request; retrying after "
+            f"{retry_after}s"
+        )
         self.retry_after = retry_after
 
-
-def load_dotenv(path: str = ".env") -> None:
-    env_path = Path(path)
-    if not env_path.exists():
-        return
-    for raw_line in env_path.read_text().splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        key = key.strip()
-        value = value.strip().strip("'\"")
-        os.environ.setdefault(key, value)
-
-
-def env(name: str, default: str | None = None, required: bool = False) -> str:
-    value = os.environ.get(name, default)
-    if required and not value:
-        raise ConfigError(f"Missing required environment variable: {name}")
-    return value or ""
-
-
-def env_float(name: str, default: float) -> float:
-    value = os.environ.get(name)
-    if value is None or value == "":
-        return default
-    return float(value)
-
-
-def env_bool(name: str, default: bool) -> bool:
-    value = os.environ.get(name)
-    if value is None or value == "":
-        return default
-    normalized = value.strip().lower()
-    if normalized in {"1", "true", "yes", "y", "on"}:
-        return True
-    if normalized in {"0", "false", "no", "n", "off"}:
-        return False
-    raise ConfigError(f"{name} must be true or false")
-
-
-def validate_spotify_client_id(client_id: str) -> None:
-    value = client_id.strip()
-    if value in {"your_spotify_client_id", "your_spotify_client_id_here"}:
-        raise ConfigError(
-            "SPOTIFY_CLIENT_ID is still the placeholder. Use the Client ID from "
-            "https://developer.spotify.com/dashboard, not your Spotify username or password."
-        )
-    if "@" in value or " " in value or ":" in value:
-        raise ConfigError(
-            "SPOTIFY_CLIENT_ID does not look like a Spotify Developer app Client ID. "
-            "It should be the public Client ID from the Spotify Developer Dashboard."
-        )
-    if len(value) != 32 or not value.isalnum():
-        raise ConfigError(
-            f"SPOTIFY_CLIENT_ID has length {len(value)}. Spotify Client IDs are normally "
-            "32 alphanumeric characters from the Spotify Developer Dashboard."
-        )
+from src.config import ConfigError
+from src.config import env
+from src.config import env_bool
+from src.config import env_float
+from src.config import load_dotenv
+from src.config import validate_spotify_client_id
+from src.constants import DEFAULT_SPOTIFY_REDIRECT_URI
+from src.constants import SPOTIFY_AUTH_URL
+from src.constants import SPOTIFY_CURRENTLY_PLAYING_URL
+from src.constants import SPOTIFY_SCOPE
+from src.constants import SPOTIFY_TOKEN_URL
 
 
 def ensure_parent(path: Path) -> None:
@@ -132,8 +77,15 @@ def rgb_saturation(rgb: tuple[int, int, int]) -> float:
     return colorsys.rgb_to_hsv(r, g, b)[1]
 
 
-def is_usable_album_color(rgb: tuple[int, int, int], min_luminance: float, min_saturation: float) -> bool:
-    return relative_luminance(rgb) >= min_luminance and rgb_saturation(rgb) >= min_saturation
+def is_usable_album_color(
+    rgb: tuple[int, int, int],
+    min_luminance: float,
+    min_saturation: float,
+) -> bool:
+    return (
+        relative_luminance(rgb) >= min_luminance
+        and rgb_saturation(rgb) >= min_saturation
+    )
 
 
 def image_pixel_data(image: Image.Image) -> Any:
@@ -160,7 +112,9 @@ def request_json(method: str, url: str, **kwargs: Any) -> Any:
     except ValueError:
         payload = response.text
     if response.status_code >= 400:
-        raise RuntimeError(f"{method} {url} failed: HTTP {response.status_code}: {payload}")
+        raise RuntimeError(
+            f"{method} {url} failed: HTTP {response.status_code}: {payload}"
+        )
     return payload
 
 
@@ -170,15 +124,22 @@ class SpotifyCallbackHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         parsed = urllib.parse.urlparse(self.path)
         params = urllib.parse.parse_qs(parsed.query)
-        self.server.auth_code = params.get("code", [""])[0]  # type: ignore[attr-defined]
-        self.server.auth_state = params.get("state", [""])[0]  # type: ignore[attr-defined]
-        self.server.auth_error = params.get("error", [""])[0]  # type: ignore[attr-defined]
+        self.server.auth_code = (
+            params.get("code", [""])[0]
+        )  # type: ignore[attr-defined]
+        self.server.auth_state = (
+            params.get("state", [""])[0]
+        )  # type: ignore[attr-defined]
+        self.server.auth_error = (
+            params.get("error", [""])[0]
+        )  # type: ignore[attr-defined]
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.end_headers()
         self.wfile.write(
             b"<html><body><h1>Spotify authorization received.</h1>"
-            b"<p>You can close this tab and return to the terminal.</p></body></html>"
+            b"<p>You can close this tab and return to the terminal.</p>"
+            b"</body></html>"
         )
 
     def log_message(self, format: str, *args: Any) -> None:
@@ -186,7 +147,13 @@ class SpotifyCallbackHandler(BaseHTTPRequestHandler):
 
 
 class SpotifyClient:
-    def __init__(self, client_id: str, redirect_uri: str, cache_file: Path, open_browser: bool = True):
+    def __init__(
+        self,
+        client_id: str,
+        redirect_uri: str,
+        cache_file: Path,
+        open_browser: bool = True,
+    ):
         self.client_id = client_id
         self.redirect_uri = redirect_uri
         self.cache_file = cache_file
@@ -202,7 +169,9 @@ class SpotifyClient:
             return {}
 
     def _save_token(self, token: dict[str, Any]) -> None:
-        token["expires_at"] = int(time.time()) + int(token.get("expires_in", 3600)) - 60
+        token["expires_at"] = (
+            int(time.time()) + int(token.get("expires_in", 3600)) - 60
+        )
         if "refresh_token" not in token and self.token.get("refresh_token"):
             token["refresh_token"] = self.token["refresh_token"]
         ensure_parent(self.cache_file)
@@ -210,7 +179,10 @@ class SpotifyClient:
         self.token = token
 
     def access_token(self) -> str:
-        if self.token.get("access_token") and int(self.token.get("expires_at", 0)) > int(time.time()):
+        if (
+            self.token.get("access_token")
+            and int(self.token.get("expires_at", 0)) > int(time.time())
+        ):
             return self.token["access_token"]
         if self.token.get("refresh_token"):
             self._refresh_token()
@@ -229,12 +201,20 @@ class SpotifyClient:
 
     def _authorize(self) -> None:
         parsed = urllib.parse.urlparse(self.redirect_uri)
-        if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "localhost"}:
-            raise ConfigError("SPOTIFY_REDIRECT_URI must be a localhost HTTP URL for this script")
+        if (
+            parsed.scheme != "http"
+            or parsed.hostname not in {"127.0.0.1", "localhost"}
+        ):
+            raise ConfigError(
+                "SPOTIFY_REDIRECT_URI must be a localhost HTTP URL for this "
+                "script"
+            )
 
         code_verifier = secrets.token_urlsafe(64)
         challenge = hashlib.sha256(code_verifier.encode("ascii")).digest()
-        code_challenge = base64.urlsafe_b64encode(challenge).decode("ascii").rstrip("=")
+        code_challenge = (
+            base64.urlsafe_b64encode(challenge).decode("ascii").rstrip("=")
+        )
         state = secrets.token_urlsafe(24)
         query = urllib.parse.urlencode(
             {
@@ -261,11 +241,13 @@ class SpotifyClient:
         if self.open_browser:
             webbrowser.open(auth_url)
 
-        while not server.auth_code and not server.auth_error:  # type: ignore[attr-defined]
+        while not server.auth_code and not server.auth_error:
             server.handle_request()
 
         if server.auth_error:  # type: ignore[attr-defined]
-            raise RuntimeError(f"Spotify authorization failed: {server.auth_error}")  # type: ignore[attr-defined]
+            raise RuntimeError(
+                f"Spotify authorization failed: {server.auth_error}"
+            )  # type: ignore[attr-defined]
         if server.auth_state != state:  # type: ignore[attr-defined]
             raise RuntimeError("Spotify authorization failed: state mismatch")
 
@@ -302,7 +284,10 @@ class SpotifyClient:
         if response.status_code == 429:
             raise SpotifyRateLimitError(parse_retry_after(response.headers))
         if response.status_code >= 400:
-            raise RuntimeError(f"Spotify currently-playing failed: HTTP {response.status_code}: {response.text}")
+            raise RuntimeError(
+                "Spotify currently-playing failed: HTTP "
+                f"{response.status_code}: {response.text}"
+            )
         return response.json()
 
 
@@ -443,17 +428,26 @@ class HomeAssistantLightController(LightController):
 
 class TuyaCloudClient:
     def __init__(self) -> None:
-        self.endpoint = env("TUYA_ENDPOINT", "https://openapi.tuyain.com").rstrip("/")
+        self.endpoint = env(
+            "TUYA_ENDPOINT",
+            "https://openapi.tuyain.com",
+        ).rstrip("/")
         self.access_id = env("TUYA_ACCESS_ID", required=True)
         self.access_secret = env("TUYA_ACCESS_SECRET", required=True)
         self.device_id = env("TUYA_DEVICE_ID", required=True)
         self.access_token = ""
         self.expires_at = 0
 
-    def _make_url_path(self, path: str, params: dict[str, Any] | None = None) -> str:
+    def _make_url_path(
+        self,
+        path: str,
+        params: dict[str, Any] | None = None,
+    ) -> str:
         if not params:
             return path
-        query = urllib.parse.urlencode(sorted((key, str(value)) for key, value in params.items()))
+        query = urllib.parse.urlencode(
+            sorted((key, str(value)) for key, value in params.items())
+        )
         return f"{path}?{query}"
 
     def _sign(
@@ -469,7 +463,9 @@ class TuyaCloudClient:
         url_path = self._make_url_path(path, params)
         content_hash = hashlib.sha256(body.encode("utf-8")).hexdigest()
         string_to_sign = f"{method.upper()}\n{content_hash}\n\n{url_path}"
-        sign_input = f"{self.access_id}{access_token}{timestamp}{nonce}{string_to_sign}"
+        sign_input = (
+            f"{self.access_id}{access_token}{timestamp}{nonce}{string_to_sign}"
+        )
         sign = hmac.new(
             self.access_secret.encode("utf-8"),
             sign_input.encode("utf-8"),
@@ -499,13 +495,21 @@ class TuyaCloudClient:
         token = self.get_token() if use_token else ""
         headers = self._sign(method, path, params, body, token)
         url = f"{self.endpoint}{self._make_url_path(path, params)}"
-        response = requests.request(method, url, headers=headers, data=body or None, timeout=20)
+        response = requests.request(
+            method,
+            url,
+            headers=headers,
+            data=body or None,
+            timeout=20,
+        )
         try:
             data = response.json()
         except ValueError:
             data = {"success": False, "msg": response.text}
         if response.status_code >= 400 or not data.get("success", False):
-            raise RuntimeError(f"Tuya API failed: HTTP {response.status_code}: {data}")
+            raise RuntimeError(
+                f"Tuya API failed: HTTP {response.status_code}: {data}"
+            )
         return data.get("result")
 
     def get_token(self) -> str:
@@ -524,7 +528,10 @@ class TuyaCloudClient:
         return self.access_token
 
     def device_specification(self) -> dict[str, Any]:
-        return self.request("GET", f"/v1.0/devices/{self.device_id}/specifications")
+        return self.request(
+            "GET",
+            f"/v1.0/devices/{self.device_id}/specifications",
+        )
 
     def device_status(self) -> list[dict[str, Any]]:
         return self.request("GET", f"/v1.0/devices/{self.device_id}/status")
@@ -608,13 +615,19 @@ def infer_tuya_light_spec(specification: dict[str, Any]) -> TuyaLightSpec:
 
     color_code = color_override
     if not color_code:
-        for candidate in ("colour_data_v2", "colour_data", "color_data", "colour_data_hsv"):
+        for candidate in (
+            "colour_data_v2",
+            "colour_data",
+            "color_data",
+            "colour_data_hsv",
+        ):
             if candidate in by_code:
                 color_code = candidate
                 break
     if not color_code:
         raise ConfigError(
-            "Could not infer Tuya color command. Run --print-tuya-spec and set TUYA_COLOR_CODE."
+            "Could not infer Tuya color command. Run --print-tuya-spec and "
+            "set TUYA_COLOR_CODE."
         )
 
     values = _parse_values(by_code.get(color_code, {}).get("values"))
@@ -631,7 +644,9 @@ def infer_tuya_light_spec(specification: dict[str, Any]) -> TuyaLightSpec:
 
     value_format = format_override or "object"
     if value_format not in {"auto", "object", "string"}:
-        raise ConfigError("TUYA_COLOR_VALUE_FORMAT must be auto, object, or string")
+        raise ConfigError(
+            "TUYA_COLOR_VALUE_FORMAT must be auto, object, or string"
+        )
     if value_format == "auto":
         value_format = "object"
 
@@ -671,7 +686,12 @@ class TuyaCloudLightController(LightController):
             if self.spec.switch_code:
                 commands.append({"code": self.spec.switch_code, "value": True})
             if self.spec.work_mode_code and self.spec.work_mode_value:
-                commands.append({"code": self.spec.work_mode_code, "value": self.spec.work_mode_value})
+                commands.append(
+                    {
+                        "code": self.spec.work_mode_code,
+                        "value": self.spec.work_mode_value,
+                    }
+                )
         commands.append({"code": self.spec.color_code, "value": color_value})
 
         self.client.send_commands(commands)
@@ -692,16 +712,25 @@ def best_album_image(item: dict[str, Any]) -> str | None:
     images = item.get("album", {}).get("images", [])
     if not images:
         return None
-    return max(images, key=lambda image: image.get("width", 0) * image.get("height", 0)).get("url")
+    return max(
+        images,
+        key=lambda image: image.get("width", 0) * image.get("height", 0),
+    ).get("url")
 
 
 def track_label(item: dict[str, Any]) -> str:
     name = item.get("name", "Unknown track")
-    artists = ", ".join(artist.get("name", "Unknown artist") for artist in item.get("artists", []))
+    artists = ", ".join(
+        artist.get("name", "Unknown artist")
+        for artist in item.get("artists", [])
+    )
     return f"{name} - {artists}" if artists else name
 
 
-def current_track_summary(spotify: SpotifyClient, quiet: bool = False) -> TrackSummary | None:
+def current_track_summary(
+    spotify: SpotifyClient,
+    quiet: bool = False,
+) -> TrackSummary | None:
     playback = spotify.currently_playing()
     if not playback or not playback.get("is_playing"):
         if not quiet:
@@ -737,7 +766,10 @@ def track_color_from_summary(summary: TrackSummary) -> TrackColor | None:
     )
 
 
-def current_track_color(spotify: SpotifyClient, quiet: bool = False) -> TrackColor | None:
+def current_track_color(
+    spotify: SpotifyClient,
+    quiet: bool = False,
+) -> TrackColor | None:
     summary = current_track_summary(spotify, quiet=quiet)
     if not summary:
         return None
@@ -771,9 +803,14 @@ def apply_track_color(
 def build_spotify(open_browser: bool) -> SpotifyClient:
     client_id = env("SPOTIFY_CLIENT_ID", required=True)
     validate_spotify_client_id(client_id)
-    redirect_uri = env("SPOTIFY_REDIRECT_URI", "http://127.0.0.1:8888/callback")
+    redirect_uri = env("SPOTIFY_REDIRECT_URI", DEFAULT_SPOTIFY_REDIRECT_URI)
     cache_file = Path(env("SPOTIFY_CACHE_FILE", ".cache/spotify_token.json"))
-    return SpotifyClient(client_id, redirect_uri, cache_file, open_browser=open_browser)
+    return SpotifyClient(
+        client_id,
+        redirect_uri,
+        cache_file,
+        open_browser=open_browser,
+    )
 
 
 def print_tuya_spec() -> None:
@@ -787,19 +824,43 @@ def print_tuya_spec() -> None:
 
 def main() -> int:
     load_dotenv()
-    parser = argparse.ArgumentParser(description="Sync a smart bulb color to Spotify album art.")
-    parser.add_argument("--once", action="store_true", help="Process the current track once and exit.")
-    parser.add_argument("--dry-run", action="store_true", help="Do not send commands to the bulb.")
+    parser = argparse.ArgumentParser(
+        description="Sync a smart bulb color to Spotify album art."
+    )
+    parser.add_argument(
+        "--once",
+        action="store_true",
+        help="Process the current track once and exit.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Do not send commands to the bulb.",
+    )
     parser.add_argument(
         "--poll-seconds",
         type=float,
         default=env_float("POLL_SECONDS", 1.0),
         help="Spotify polling interval in seconds. Default: 1.",
     )
-    parser.add_argument("--no-open-browser", action="store_true", help="Print Spotify auth URL instead of opening it.")
-    parser.add_argument("--print-tuya-spec", action="store_true", help="Print Tuya device functions/status and exit.")
-    parser.add_argument("--image-url", help="Extract a dominant color from an image URL and exit.")
-    parser.add_argument("--rgb", help="Set the bulb to a manual RGB color like #00aaff and exit.")
+    parser.add_argument(
+        "--no-open-browser",
+        action="store_true",
+        help="Print Spotify auth URL instead of opening it.",
+    )
+    parser.add_argument(
+        "--print-tuya-spec",
+        action="store_true",
+        help="Print Tuya device functions/status and exit.",
+    )
+    parser.add_argument(
+        "--image-url",
+        help="Extract a dominant color from an image URL and exit.",
+    )
+    parser.add_argument(
+        "--rgb",
+        help="Set the bulb to a manual RGB color like #00aaff and exit.",
+    )
     args = parser.parse_args()
 
     try:
@@ -840,12 +901,17 @@ def main() -> int:
                     apply_track_color(controller, track, args.dry_run)
                     last_track_id = track.track_id
             except SpotifyRateLimitError as exc:
-                print(f"Spotify rate limited the request; sleeping {exc.retry_after}s.", file=sys.stderr)
+                print(
+                    f"Spotify rate limited the request; sleeping "
+                    f"{exc.retry_after}s.",
+                    file=sys.stderr,
+                )
                 if args.once:
                     return 1
                 time.sleep(exc.retry_after)
                 continue
-            except Exception as exc:  # keep the watcher alive across transient API failures
+            except Exception as exc:
+                # Keep the watcher alive across transient API failures.
                 print(f"Error: {exc}", file=sys.stderr)
             if args.once:
                 return 0
