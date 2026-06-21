@@ -64,7 +64,8 @@ Do not put your Spotify username, email, password, or Client Secret in
 `SPOTIFY_CLIENT_ID`.
 
 On first run, the script opens Spotify login in your browser and stores the
-resulting refresh token in `.cache/spotify_token.json`.
+resulting refresh token in `.cache/spotify_token.json` with owner-only file
+permissions.
 
 ### 3. Smart Life and Tuya Cloud setup
 
@@ -216,6 +217,8 @@ Or override it from the command line:
 python main.py --poll-seconds 2
 ```
 
+The polling interval must be greater than `0`.
+
 The script ignores album-art colors that are too dark or gray to produce useful
 bulb output. If no usable color is found, it uses a fallback color. Tune that in
 `.env`:
@@ -250,7 +253,9 @@ python main.py --rgb '#00aaff'
 ```
 
 On the first run, the script opens Spotify login in your browser and stores a
-refresh token under `.cache/spotify_token.json`.
+refresh token under `.cache/spotify_token.json` with owner-only file
+permissions. If the browser callback never arrives, Spotify authorization times
+out instead of blocking forever.
 
 ## Architecture
 
@@ -258,19 +263,22 @@ refresh token under `.cache/spotify_token.json`.
 
 The app starts in `main.py`.
 
-1. It loads `.env` values with `load_dotenv()`.
-2. It parses CLI flags such as `--dry-run`, `--once`, `--rgb`, and
-   `--print-tuya-spec`.
-3. For direct actions:
+1. It builds the CLI parser and parses flags such as `--dry-run`, `--once`,
+   `--rgb`, and `--print-tuya-spec`.
+2. It loads `.env` values with `load_dotenv()` and resolves environment-backed
+   defaults such as `POLL_SECONDS`.
+3. It validates runtime options, including requiring `--poll-seconds` to be
+   greater than `0`.
+4. For direct actions:
    - `--print-tuya-spec` prints the Tuya device specification.
    - `--image-url` extracts a dominant color from a given image URL.
    - `--rgb` sends a manual RGB color to the configured light backend.
-4. For normal watcher mode:
+5. For normal watcher mode:
    - `build_spotify()` creates the Spotify client.
    - `build_light_controller()` creates the configured light backend unless
      `--dry-run` is enabled.
-   - `run_watcher()` polls Spotify, extracts the album-art color for the
-     current track, and updates the bulb when the track changes.
+   - `run_watcher()` polls Spotify, resolves album-art color only when the
+     track changes, and updates the bulb.
 
 ### Architecture diagram
 
@@ -337,7 +345,8 @@ Key responsibilities:
 - get the current Spotify track
 - normalize playback data into `TrackSummary`
 - resolve album art into `TrackColor`
-- avoid duplicate light updates when the track has not changed
+- avoid duplicate album-art extraction and light updates when the track has not
+  changed
 - handle dry-run behavior
 - keep the watcher alive across transient runtime failures
 - back off on Spotify rate limits
@@ -447,8 +456,12 @@ credentials. It covers:
 - color parsing, filtering, HSV conversion, and album-art fallback behavior
 - config parsing and Spotify client ID validation
 - Spotify helper behavior such as retry parsing, token persistence, request
-  error handling, refresh-on-401 flow, and rate-limit handling
-- runner dry-run behavior and once-mode watcher flow
+  error handling, refresh-on-401 flow, rate-limit handling, private token-cache
+  writes, and OAuth callback timeout/cleanup
+- runner dry-run behavior, invalid playback payloads, once-mode watcher flow,
+  and unchanged-track skipping
+- CLI behavior for one-shot commands, malformed user input, and invalid polling
+  intervals
 - light backend factory selection
 - Tuya spec inference and Tuya command payload generation
 

@@ -5,7 +5,9 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import os
 import secrets
+import tempfile
 import time
 import urllib.parse
 import webbrowser
@@ -32,6 +34,10 @@ from src.enums import (
     SpotifyResponseType,
     SpotifyTokenField,
 )
+
+
+SPOTIFY_CALLBACK_TIMEOUT_SECONDS = 300
+SPOTIFY_CALLBACK_POLL_SECONDS = 1.0
 
 
 class SpotifyRateLimitError(RuntimeError):
@@ -120,7 +126,35 @@ class SpotifyClient:
                 SpotifyTokenField.REFRESH_TOKEN
             ]
         self.cache_file.parent.mkdir(parents=True, exist_ok=True)
-        self.cache_file.write_text(json.dumps(token, indent=2, sort_keys=True))
+        payload = json.dumps(token, indent=2, sort_keys=True)
+        fd = -1
+        temp_path = ""
+        try:
+            try:
+                fd, temp_path = tempfile.mkstemp(
+                    dir=self.cache_file.parent,
+                    prefix=f".{self.cache_file.name}.",
+                    text=True,
+                )
+                os.fchmod(fd, 0o600)
+                with os.fdopen(fd, "w") as temp_file:
+                    fd = -1
+                    temp_file.write(payload)
+                    temp_file.write("\n")
+                    temp_file.flush()
+                    os.fsync(temp_file.fileno())
+                os.replace(temp_path, self.cache_file)
+                os.chmod(self.cache_file, 0o600)
+            finally:
+                if fd != -1:
+                    os.close(fd)
+        except Exception:
+            if temp_path:
+                try:
+                    os.unlink(temp_path)
+                except FileNotFoundError:
+                    pass
+            raise
         self.token = token
 
     def access_token(self) -> str:
@@ -184,13 +218,21 @@ class SpotifyClient:
         if self.open_browser:
             webbrowser.open(auth_url)
 
-        while not server.auth_code and not server.auth_error:
-            server.handle_request()
+        deadline = time.monotonic() + SPOTIFY_CALLBACK_TIMEOUT_SECONDS
+        try:
+            while not server.auth_code and not server.auth_error:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise RuntimeError("Spotify authorization timed out")
+                server.timeout = min(SPOTIFY_CALLBACK_POLL_SECONDS, remaining)
+                server.handle_request()
 
-        if server.auth_error:
-            raise RuntimeError(f"Spotify authorization failed: {server.auth_error}")
-        if server.auth_state != state:
-            raise RuntimeError("Spotify authorization failed: state mismatch")
+            if server.auth_error:
+                raise RuntimeError(f"Spotify authorization failed: {server.auth_error}")
+            if server.auth_state != state:
+                raise RuntimeError("Spotify authorization failed: state mismatch")
+        finally:
+            server.server_close()
 
         payload = {
             SpotifyOAuthParam.CLIENT_ID: self.client_id,
