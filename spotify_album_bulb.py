@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import base64
-import colorsys
 import hashlib
 import hmac
 import json
@@ -16,12 +15,10 @@ import uuid
 import webbrowser
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from io import BytesIO
 from pathlib import Path
 from typing import Any
 
 import requests
-from PIL import Image
 
 class SpotifyRateLimitError(RuntimeError):
     def __init__(self, retry_after: int) -> None:
@@ -31,6 +28,11 @@ class SpotifyRateLimitError(RuntimeError):
         )
         self.retry_after = retry_after
 
+from src.color.extractor import album_rgb_from_url
+from src.color.extractor import dominant_rgb_from_url
+from src.color.utils import parse_rgb
+from src.color.utils import rgb_hex
+from src.color.utils import rgb_to_hsv_command
 from src.config import ConfigError
 from src.config import env
 from src.config import env_bool
@@ -43,7 +45,6 @@ from src.constants import SPOTIFY_CURRENTLY_PLAYING_URL
 from src.constants import SPOTIFY_SCOPE
 from src.constants import SPOTIFY_TOKEN_URL
 
-
 def ensure_parent(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -54,44 +55,6 @@ def now_ms() -> int:
 
 def json_dumps(data: Any) -> str:
     return json.dumps(data, separators=(",", ":"), ensure_ascii=False)
-
-
-def parse_rgb(value: str) -> tuple[int, int, int]:
-    cleaned = value.strip().lstrip("#")
-    if len(cleaned) != 6:
-        raise ValueError("RGB color must look like #00aaff")
-    return tuple(int(cleaned[i : i + 2], 16) for i in (0, 2, 4))
-
-
-def rgb_hex(rgb: tuple[int, int, int]) -> str:
-    return "#{:02x}{:02x}{:02x}".format(*rgb)
-
-
-def relative_luminance(rgb: tuple[int, int, int]) -> float:
-    r, g, b = rgb
-    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
-
-
-def rgb_saturation(rgb: tuple[int, int, int]) -> float:
-    r, g, b = (channel / 255 for channel in rgb)
-    return colorsys.rgb_to_hsv(r, g, b)[1]
-
-
-def is_usable_album_color(
-    rgb: tuple[int, int, int],
-    min_luminance: float,
-    min_saturation: float,
-) -> bool:
-    return (
-        relative_luminance(rgb) >= min_luminance
-        and rgb_saturation(rgb) >= min_saturation
-    )
-
-
-def image_pixel_data(image: Image.Image) -> Any:
-    if hasattr(image, "get_flattened_data"):
-        return image.get_flattened_data()
-    return image.getdata()
 
 
 def parse_retry_after(headers: Any) -> int:
@@ -291,87 +254,6 @@ class SpotifyClient:
         return response.json()
 
 
-def album_rgb_from_image_bytes(
-    image_bytes: bytes,
-    colors: int = 16,
-    min_luminance: float | None = None,
-    min_saturation: float | None = None,
-    fallback_rgb: tuple[int, int, int] | None = None,
-) -> tuple[tuple[int, int, int], bool]:
-    if min_luminance is None:
-        min_luminance = env_float("ALBUM_COLOR_MIN_LUMINANCE", 0.08)
-    if min_saturation is None:
-        min_saturation = env_float("ALBUM_COLOR_MIN_SATURATION", 0.12)
-    if fallback_rgb is None:
-        fallback_rgb = parse_rgb(env("ALBUM_COLOR_FALLBACK", "#ff6600"))
-
-    image = Image.open(BytesIO(image_bytes)).convert("RGBA")
-    image.thumbnail((160, 160), Image.Resampling.LANCZOS)
-
-    pixels = []
-    for r, g, b, a in image_pixel_data(image):
-        if a < 128:
-            continue
-        pixels.append((r, g, b))
-    if not pixels:
-        raise RuntimeError("Album art image had no visible pixels")
-
-    rgb_image = Image.new("RGB", (len(pixels), 1))
-    rgb_image.putdata(pixels)
-    palette = rgb_image.quantize(colors=colors, method=Image.Quantize.MEDIANCUT)
-    counts = palette.getcolors(maxcolors=colors)
-    if not counts:
-        raise RuntimeError("Could not quantize album art")
-    pal = palette.getpalette()
-
-    candidates = []
-    for count, palette_index in counts:
-        offset = palette_index * 3
-        rgb = (pal[offset], pal[offset + 1], pal[offset + 2])
-        if is_usable_album_color(rgb, min_luminance, min_saturation):
-            candidates.append((count, rgb))
-
-    if not candidates:
-        return fallback_rgb, True
-
-    return max(candidates, key=lambda item: item[0])[1], False
-
-
-def dominant_rgb_from_image_bytes(
-    image_bytes: bytes,
-    colors: int = 16,
-    min_luminance: float | None = None,
-    min_saturation: float | None = None,
-    fallback_rgb: tuple[int, int, int] | None = None,
-) -> tuple[int, int, int]:
-    rgb, _ = album_rgb_from_image_bytes(
-        image_bytes,
-        colors=colors,
-        min_luminance=min_luminance,
-        min_saturation=min_saturation,
-        fallback_rgb=fallback_rgb,
-    )
-    return rgb
-
-
-def album_rgb_from_url(image_url: str) -> tuple[tuple[int, int, int], bool]:
-    response = requests.get(image_url, timeout=20)
-    response.raise_for_status()
-    return album_rgb_from_image_bytes(response.content)
-
-
-def dominant_rgb_from_url(image_url: str) -> tuple[int, int, int]:
-    rgb, _ = album_rgb_from_url(image_url)
-    return rgb
-
-
-@dataclass
-class HsvCommand:
-    h: int
-    s: int
-    v: int
-
-
 @dataclass(frozen=True)
 class TrackSummary:
     track_id: str
@@ -385,24 +267,6 @@ class TrackColor:
     label: str
     rgb: tuple[int, int, int]
     fallback_used: bool = False
-
-
-def rgb_to_hsv_command(
-    rgb: tuple[int, int, int],
-    h_max: int = 360,
-    s_max: int = 255,
-    v_max: int = 255,
-    min_value_percent: float = 35.0,
-) -> HsvCommand:
-    r, g, b = (channel / 255 for channel in rgb)
-    h, s, v = colorsys.rgb_to_hsv(r, g, b)
-    min_v = int(round(v_max * (min_value_percent / 100)))
-    hue = int(round(h * h_max))
-    if hue >= h_max:
-        hue = 0
-    sat = max(1, int(round(s * s_max)))
-    val = max(min_v, int(round(v * v_max)))
-    return HsvCommand(h=hue, s=sat, v=val)
 
 
 class LightController:
