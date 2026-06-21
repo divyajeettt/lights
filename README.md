@@ -1,7 +1,7 @@
 # Spotify Album Art Bulb Color
 
 This script watches the currently playing Spotify track for your account and
-sets a smart bulb to the dominant album-art color. Spotify's current-playback
+sets one or more smart bulbs to album-art colors. Spotify's current-playback
 API works whether playback is on the Mac Spotify app or on your Android phone,
 as long as both use the same Spotify account.
 
@@ -135,6 +135,13 @@ Smart Life/Tuya-compatible app accounts.
     TUYA_DEVICE_ID=<bulb device id>
     ```
 
+    For multiple bulbs, use a comma-separated list instead:
+
+    ```env
+    TUYA_DEVICE_IDS=<first bulb device id>,<second bulb device id>
+    TUYA_DEVICE_LABELS=desk bulb,floor bulb
+    ```
+
 Your Tuya config should look like:
 
 ```env
@@ -142,7 +149,8 @@ LIGHT_BACKEND=tuya_cloud
 TUYA_ENDPOINT=https://openapi.tuyain.com
 TUYA_ACCESS_ID=<cloud project access id>
 TUYA_ACCESS_SECRET=<cloud project access secret>
-TUYA_DEVICE_ID=<bulb device id>
+TUYA_DEVICE_IDS=<first bulb device id>,<second bulb device id>
+TUYA_DEVICE_LABELS=desk bulb,floor bulb
 TUYA_ENSURE_ON_COLOR_MODE=false
 ```
 
@@ -206,6 +214,23 @@ POLL_SECONDS=1
 ```
 
 The polling interval must be greater than `0`.
+
+By default, configured bulbs receive different colors from the same album art:
+
+```env
+LIGHT_COLOR_MODE=album_palette
+```
+
+To send the same dominant album-art color to every configured bulb, set:
+
+```env
+LIGHT_COLOR_MODE=same
+```
+
+If `TUYA_DEVICE_IDS` is set, every listed Tuya device is updated. If it is not
+set, the script falls back to the single-bulb `TUYA_DEVICE_ID` setting.
+Set `TUYA_DEVICE_LABELS` to control the names shown in logs. The label count
+must match the number of configured Tuya devices.
 
 The script ignores album-art colors that are too dark or gray to produce useful
 bulb output. If no usable color is found, it uses a fallback color. Tune that in

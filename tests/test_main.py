@@ -55,6 +55,8 @@ def test_main_default_run_calls_watcher(monkeypatch, tmp_path) -> None:
     controller = StubController()
     calls = {}
 
+    monkeypatch.delenv("LIGHT_COLOR_MODE", raising=False)
+    monkeypatch.setenv("TUYA_DEVICE_ID", "device-1")
     monkeypatch.setattr(cli, "build_spotify", lambda: "spotify")
     monkeypatch.setattr(cli, "build_light_controller", lambda: controller)
 
@@ -72,6 +74,8 @@ def test_main_default_run_calls_watcher(monkeypatch, tmp_path) -> None:
         "controller": controller,
         "poll_seconds": 1.0,
         "dry_run_once": False,
+        "light_count": 1,
+        "color_mode": cli.LightColorMode.ALBUM_PALETTE,
     }
 
 
@@ -81,6 +85,7 @@ def test_main_dry_run_once_calls_watcher_without_controller(
 ) -> None:
     calls = {}
 
+    monkeypatch.delenv("LIGHT_COLOR_MODE", raising=False)
     monkeypatch.setattr(cli, "build_spotify", lambda: "spotify")
 
     def fail_build_light_controller():
@@ -101,10 +106,14 @@ def test_main_dry_run_once_calls_watcher_without_controller(
         "controller": None,
         "poll_seconds": 1.0,
         "dry_run_once": True,
+        "light_count": 1,
+        "color_mode": cli.LightColorMode.ALBUM_PALETTE,
     }
 
 
-def test_main_set_rgb_uses_light_controller_without_spotify(monkeypatch, tmp_path) -> None:
+def test_main_set_rgb_uses_light_controller_without_spotify(
+    monkeypatch, tmp_path
+) -> None:
     controller = StubController()
 
     def fail_build_spotify():

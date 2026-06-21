@@ -1,7 +1,7 @@
 """Light backend implementations."""
 
-from .base import LightController
-from .factory import build_light_controller
+from .base import GroupLightController, LightController, SingleLightController
+from .factory import build_light_controller, configured_light_count
 from .homeassistant import HomeAssistantLightController
 from .tuya import (
     TuyaCloudClient,
@@ -12,10 +12,13 @@ from .tuya import (
 
 __all__ = [
     "HomeAssistantLightController",
+    "GroupLightController",
     "LightController",
+    "SingleLightController",
     "TuyaCloudClient",
     "TuyaCloudLightController",
     "TuyaLightSpec",
     "build_light_controller",
+    "configured_light_count",
     "infer_tuya_light_spec",
 ]

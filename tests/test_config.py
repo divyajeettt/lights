@@ -3,6 +3,7 @@ import pytest
 from src.config import (
     ConfigError,
     env_bool,
+    env_csv,
     env_float,
     validate_spotify_client_id,
 )
@@ -29,6 +30,19 @@ def test_env_float_rejects_invalid_value_with_variable_name(monkeypatch) -> None
 
     with pytest.raises(ConfigError, match=FLOAT_SETTING):
         env_float(FLOAT_SETTING, default=1.0)
+
+
+def test_env_csv_parses_comma_separated_values(monkeypatch) -> None:
+    monkeypatch.setenv("DEVICE_IDS", "first, second")
+
+    assert env_csv("DEVICE_IDS") == ["first", "second"]
+
+
+def test_env_csv_rejects_empty_items(monkeypatch) -> None:
+    monkeypatch.setenv("DEVICE_IDS", "first,,second")
+
+    with pytest.raises(ConfigError, match="DEVICE_IDS"):
+        env_csv("DEVICE_IDS")
 
 
 def test_validate_spotify_client_id_rejects_placeholder() -> None:
