@@ -10,7 +10,6 @@ from src.models import Color
 RGB_HEX_LENGTH = 6
 RGB_BYTE_MAX = 255
 PERCENT_MAX = 100
-MIN_HSV_SATURATION = 1
 
 DEFAULT_HUE_MAX = 360
 DEFAULT_SATURATION_MAX = RGB_BYTE_MAX
@@ -78,6 +77,6 @@ def rgb_to_hsv_command(
     hue = int(round(h * h_max))
     if hue >= h_max:
         hue = 0
-    sat = max(MIN_HSV_SATURATION, int(round(s * s_max)))
+    sat = int(round(s * s_max))
     val = max(min_v, int(round(v * v_max)))
     return HsvCommand(h=hue, s=sat, v=val)

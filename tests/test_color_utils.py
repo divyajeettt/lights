@@ -16,3 +16,8 @@ def test_is_usable_album_color_rejects_dark_gray() -> None:
 def test_rgb_to_hsv_command_applies_min_value_floor() -> None:
     hsv = rgb_to_hsv_command((1, 1, 1), v_max=255, min_value_percent=35.0)
     assert hsv.v >= 89
+
+
+def test_rgb_to_hsv_command_preserves_grayscale_saturation() -> None:
+    hsv = rgb_to_hsv_command((128, 128, 128))
+    assert hsv.s == 0

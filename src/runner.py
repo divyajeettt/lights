@@ -42,15 +42,15 @@ def current_track_summary(
 
     item = playback.get("item") or {}
     if item.get("type") != "track":
-        if quiet:
-            return None
-        print(f"Currently playing item is not a track: {item.get('type')}")
+        if not quiet:
+            print(f"Currently playing item is not a track: {item.get('type')}")
+        return None
 
     track_id = item.get("id") or item.get("uri")
     if not track_id:
-        if quiet:
-            return None
-        print("Currently playing track has no Spotify ID.")
+        if not quiet:
+            print("Currently playing track has no Spotify ID.")
+        return None
 
     return TrackSummary(track_id=track_id, label=track_label(item), item=item)
 
@@ -114,10 +114,12 @@ def run_watcher(
 
     while True:
         try:
-            track = current_track_color(spotify)
-            if track and track.track_id != last_track_id:
-                apply_track_color(controller, track, dry_run)
-                last_track_id = track.track_id
+            summary = current_track_summary(spotify)
+            if summary and summary.track_id != last_track_id:
+                track = track_color_from_summary(summary)
+                if track:
+                    apply_track_color(controller, track, dry_run)
+                last_track_id = summary.track_id
         except SpotifyRateLimitError as exc:
             print(
                 f"Spotify rate limited the request; sleeping {exc.retry_after}s.",

@@ -42,7 +42,10 @@ def env_float(name: str, default: float) -> float:
     value = os.environ.get(name)
     if value is None or value == "":
         return default
-    return float(value)
+    try:
+        return float(value)
+    except ValueError as exc:
+        raise ConfigError(f"{name} must be a number") from exc
 
 
 def env_bool(name: str, default: bool) -> bool:
