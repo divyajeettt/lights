@@ -1,3 +1,5 @@
+import pytest
+
 import src.light.tuya as tuya_module
 from src.enums import TuyaEnvVar
 from src.light import TuyaCloudLightController, TuyaLightSpec
@@ -19,6 +21,7 @@ def make_controller(
     monkeypatch,
     *,
     ensure_on_color_mode: bool,
+    brightness_scale: str = "1",
     color_value_format: str = "object",
 ) -> tuple[TuyaCloudLightController, StubTuyaClient]:
     client = StubTuyaClient()
@@ -43,6 +46,7 @@ def make_controller(
         "true" if ensure_on_color_mode else "false",
     )
     monkeypatch.setenv(TuyaEnvVar.MIN_VALUE_PERCENT, "35")
+    monkeypatch.setenv(TuyaEnvVar.BRIGHTNESS_SCALE, brightness_scale)
     return TuyaCloudLightController(), client
 
 
@@ -62,7 +66,7 @@ def test_tuya_controller_sends_only_color_command_by_default(
             "value": {
                 "h": 200,
                 "s": 1000,
-                "v": 1000,
+                "v": 549,
             },
         }
     ]
@@ -87,6 +91,27 @@ def test_tuya_controller_can_include_mode_commands(monkeypatch) -> None:
     assert client.commands[2]["code"] == "colour_data_v2"
 
 
+def test_tuya_controller_applies_brightness_scale(monkeypatch) -> None:
+    controller, client = make_controller(
+        monkeypatch,
+        ensure_on_color_mode=False,
+        brightness_scale="0.5",
+    )
+
+    controller.set_rgb((0, 170, 255))
+
+    assert client.commands == [
+        {
+            "code": "colour_data_v2",
+            "value": {
+                "h": 200,
+                "s": 1000,
+                "v": 350,
+            },
+        }
+    ]
+
+
 def test_tuya_controller_can_send_string_color_payload(monkeypatch) -> None:
     controller, client = make_controller(
         monkeypatch,
@@ -99,6 +124,15 @@ def test_tuya_controller_can_send_string_color_payload(monkeypatch) -> None:
     assert client.commands == [
         {
             "code": "colour_data_v2",
-            "value": '{"h":200,"s":1000,"v":1000}',
+            "value": '{"h":200,"s":1000,"v":549}',
         }
     ]
+
+
+def test_tuya_controller_rejects_negative_brightness_scale(monkeypatch) -> None:
+    with pytest.raises(ValueError, match="TUYA_BRIGHTNESS_SCALE"):
+        make_controller(
+            monkeypatch,
+            ensure_on_color_mode=False,
+            brightness_scale="-1",
+        )

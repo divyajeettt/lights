@@ -14,6 +14,7 @@ import requests
 from src.color import rgb_to_hsv_command
 from src.config import ConfigError, env, env_bool, env_float
 from src.constants import (
+    DEFAULT_TUYA_BRIGHTNESS_SCALE,
     DEFAULT_TUYA_ENDPOINT,
     DEFAULT_TUYA_MIN_VALUE_PERCENT,
     TUYA_COLOR_CODE_CANDIDATES,
@@ -322,10 +323,13 @@ class TuyaCloudLightController(SingleLightController):
             TuyaEnvVar.MIN_VALUE_PERCENT,
             DEFAULT_TUYA_MIN_VALUE_PERCENT,
         )
-        self.ensure_on_color_mode = env_bool(
-            TuyaEnvVar.ENSURE_ON_COLOR_MODE,
-            False,
+        self.brightness_scale = env_float(
+            TuyaEnvVar.BRIGHTNESS_SCALE,
+            DEFAULT_TUYA_BRIGHTNESS_SCALE,
         )
+        if self.brightness_scale < 0:
+            raise ValueError("TUYA_BRIGHTNESS_SCALE must be greater than or equal to 0")
+        self.ensure_on_color_mode = env_bool(TuyaEnvVar.ENSURE_ON_COLOR_MODE, False)
 
     @property
     def light_labels(self) -> tuple[str, ...]:
@@ -338,6 +342,7 @@ class TuyaCloudLightController(SingleLightController):
             s_max=self.spec.s_max,
             v_max=self.spec.v_max,
             min_value_percent=self.min_value_percent,
+            brightness_scale=self.brightness_scale,
         )
         color_value: dict[str, int] | str = {
             TuyaHsvField.HUE: hsv.h,

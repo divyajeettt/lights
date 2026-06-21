@@ -60,7 +60,7 @@ def main() -> int:
 
         if args.set_rgb:
             rgb = parse_rgb(args.set_rgb)
-            print(f"Setting bulb to {rgb_hex(rgb)}")
+            print(f"Setting bulb(s) to {rgb_hex(rgb)}")
             _set_manual_rgb(rgb)
             return 0
 

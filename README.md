@@ -232,15 +232,28 @@ set, the script falls back to the single-bulb `TUYA_DEVICE_ID` setting.
 Set `TUYA_DEVICE_LABELS` to control the names shown in logs. The label count
 must match the number of configured Tuya devices.
 
-The script ignores album-art colors that are too dark or gray to produce useful
-bulb output. If no usable color is found, it uses a fallback color. Tune that in
-`.env`:
+The script uses `colorgram.py` to extract an ordered palette from album art. In
+`same` mode every bulb gets the first palette color. In `album_palette` mode,
+bulbs receive colors by palette order. If no palette color is found, it uses a
+fallback color only after trying the first five prominent palette colors. Tune
+that final fallback in `.env`:
 
 ```env
-ALBUM_COLOR_MIN_LUMINANCE=0.08
-ALBUM_COLOR_MIN_SATURATION=0.12
 ALBUM_COLOR_FALLBACK=#ff6600
 ```
+
+For Tuya bulbs, each selected RGB color is converted to HSV. Hue and saturation
+come from the RGB color, while brightness uses the color's perceived luminance
+so darker palette colors stay dimmer. `TUYA_BRIGHTNESS_SCALE` dims or boosts all
+computed brightness values, and `TUYA_MIN_VALUE_PERCENT` still applies as a
+lower brightness floor:
+
+```env
+TUYA_BRIGHTNESS_SCALE=0.25
+TUYA_MIN_VALUE_PERCENT=1
+```
+
+If `TUYA_BRIGHTNESS_SCALE` is omitted, the app uses `0.25`.
 
 This bulb advertises Tuya `control_data` with a native `gradient` mode, but in
 testing it accepted that command without changing color. The script therefore
@@ -366,8 +379,7 @@ Color extraction and conversion logic.
   - RGB to HSV command conversion for Tuya
 - `src/color/extractor.py`
   - fetch image bytes from album-art URLs
-  - quantize artwork colors
-  - filter unusable colors
+  - extract ordered artwork palettes with `colorgram.py`
   - apply fallback color when needed
 
 This package is intentionally pure or close to pure except for image download.

@@ -3,6 +3,7 @@
 import colorsys
 from dataclasses import dataclass
 
+from src.constants import DEFAULT_TUYA_BRIGHTNESS_SCALE, DEFAULT_TUYA_MIN_VALUE_PERCENT
 from src.models import Color
 
 RGB_HEX_LENGTH = 6
@@ -12,7 +13,6 @@ PERCENT_MAX = 100
 DEFAULT_HUE_MAX = 360
 DEFAULT_SATURATION_MAX = RGB_BYTE_MAX
 DEFAULT_VALUE_MAX = RGB_BYTE_MAX
-DEFAULT_MIN_VALUE_PERCENT = 35.0
 
 RED_LUMINANCE_WEIGHT = 0.2126
 GREEN_LUMINANCE_WEIGHT = 0.7152
@@ -88,7 +88,8 @@ def rgb_to_hsv_command(
     h_max: int = DEFAULT_HUE_MAX,
     s_max: int = DEFAULT_SATURATION_MAX,
     v_max: int = DEFAULT_VALUE_MAX,
-    min_value_percent: float = DEFAULT_MIN_VALUE_PERCENT,
+    min_value_percent: float = DEFAULT_TUYA_MIN_VALUE_PERCENT,
+    brightness_scale: float = DEFAULT_TUYA_BRIGHTNESS_SCALE,
 ) -> HsvCommand:
     r, g, b = (channel / RGB_BYTE_MAX for channel in rgb)
     h, s, v = colorsys.rgb_to_hsv(r, g, b)
@@ -97,5 +98,6 @@ def rgb_to_hsv_command(
     if hue >= h_max:
         hue = 0
     sat = int(round(s * s_max))
-    val = max(min_v, int(round(v * v_max)))
+    scaled_value = relative_luminance(rgb) * brightness_scale
+    val = min(v_max, max(min_v, int(round(scaled_value * v_max))))
     return HsvCommand(h=hue, s=sat, v=val)
