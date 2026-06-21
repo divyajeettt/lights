@@ -2,7 +2,6 @@
 
 from .base import GroupLightController, LightController, SingleLightController
 from .factory import build_light_controller, configured_light_count
-from .homeassistant import HomeAssistantLightController
 from .tuya import (
     TuyaCloudClient,
     TuyaCloudLightController,
@@ -11,7 +10,6 @@ from .tuya import (
 )
 
 __all__ = [
-    "HomeAssistantLightController",
     "GroupLightController",
     "LightController",
     "SingleLightController",

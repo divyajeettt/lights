@@ -11,30 +11,13 @@ class AlbumColorEnvVar(StrEnum):
     FALLBACK = "ALBUM_COLOR_FALLBACK"
 
 
-class LightBackend(StrEnum):
-    TUYA_CLOUD = "tuya_cloud"
-    HOME_ASSISTANT = "homeassistant"
-
-
 class LightColorMode(StrEnum):
     SAME = "same"
     ALBUM_PALETTE = "album_palette"
 
 
 class LightEnvVar(StrEnum):
-    BACKEND = "LIGHT_BACKEND"
     COLOR_MODE = "LIGHT_COLOR_MODE"
-
-
-class HomeAssistantEnvVar(StrEnum):
-    ENTITY_ID = "HOME_ASSISTANT_ENTITY_ID"
-    TOKEN = "HOME_ASSISTANT_TOKEN"
-    URL = "HOME_ASSISTANT_URL"
-
-
-class HomeAssistantPayloadField(StrEnum):
-    ENTITY_ID = "entity_id"
-    RGB_COLOR = "rgb_color"
 
 
 class SpotifyEnvVar(StrEnum):

@@ -145,7 +145,6 @@ Smart Life/Tuya-compatible app accounts.
 Your Tuya config should look like:
 
 ```env
-LIGHT_BACKEND=tuya_cloud
 TUYA_ENDPOINT=https://openapi.tuyain.com
 TUYA_ACCESS_ID=<cloud project access id>
 TUYA_ACCESS_SECRET=<cloud project access secret>
@@ -166,16 +165,12 @@ India Data Center: https://openapi.tuyain.com
 Singapore Data Center: https://openapi-sg.iotbing.com
 ```
 
-### 4. Backend choice
+### 4. Tuya Cloud configuration
 
-Configure one light backend:
-
-- `LIGHT_BACKEND=tuya_cloud`: requires a Tuya IoT Cloud project, the cloud
-  `Access ID`, `Access Secret`, and the bulb `Device ID`. Pairing the bulb in
-  Smart Life and linking that app account to Tuya Cloud is the recommended path
-  for this bulb.
-- `LIGHT_BACKEND=homeassistant`: requires the bulb to already be exposed as a
-  Home Assistant `light.*` entity and a Home Assistant long-lived access token.
+Light control uses Tuya Cloud. It requires a Tuya IoT Cloud project, the cloud
+`Access ID`, `Access Secret`, and the bulb `Device ID`. Pairing the bulb in
+Smart Life and linking that app account to Tuya Cloud is the recommended path
+for this bulb.
 
 ### 5. Validate credentials
 
@@ -290,10 +285,10 @@ The app starts in `main.py`.
 3. It validates runtime options, including requiring `POLL_SECONDS` to be
    greater than `0`.
 4. For direct actions:
-   - `--set-rgb` sends a manual RGB color to the configured light backend.
+   - `--set-rgb` sends a manual RGB color to the Tuya light controller.
 5. For normal watcher mode:
    - `build_spotify()` creates the Spotify client.
-   - `build_light_controller()` creates the configured light backend unless
+   - `build_light_controller()` creates the Tuya light controller unless
      `--dry-run-once` is enabled.
    - `run_watcher()` polls Spotify, resolves album-art color only when the
      track changes, and updates the bulb.
@@ -305,11 +300,11 @@ flowchart TD
     main["main.py<br/>Starts the app and handles CLI commands"]
     spotify["Spotify integration<br/>Reads the current track and album art"]
     color["Color extraction<br/>Chooses a usable color from album art"]
-    light["Light control<br/>Sends the chosen color to the configured backend"]
+    light["Light control<br/>Sends the chosen color to Tuya Cloud"]
     config["Shared configuration<br/>Environment values, defaults, and models"]
 
     spotify_api["Spotify"]
-    backend["Tuya Cloud or Home Assistant"]
+    backend["Tuya Cloud"]
 
     main --> spotify
     main --> color
@@ -356,7 +351,7 @@ Shared application models:
 #### `src/runner.py`
 
 Application orchestration logic. This is the main runtime layer between
-Spotify, album-art color extraction, and the light backend.
+Spotify, album-art color extraction, and light control.
 
 Key responsibilities:
 
@@ -403,20 +398,17 @@ and API request structure.
 
 #### `src/light/`
 
-Light backend abstraction and implementations.
+Light control abstraction and Tuya implementation.
 
 - `src/light/base.py`
   - `LightController` protocol used by the runner
 - `src/light/factory.py`
-  - selects the configured backend
+  - creates the Tuya light controller
 - `src/light/tuya.py`
   - Tuya signing and API client
   - Tuya device specification inference
   - Tuya light controller implementation
-- `src/light/homeassistant.py`
-  - Home Assistant light controller implementation
-
-The runner depends only on the `LightController` interface, so backend-specific
+The runner depends only on the `LightController` interface, so light-control
 behavior stays isolated inside this package.
 
 #### `src/__init__.py` and package `__init__.py` files
@@ -431,13 +423,13 @@ The refactor separates the codebase into layers with clear responsibilities:
 - `runner.py` handles application flow.
 - `spotify/` handles Spotify communication.
 - `color/` handles album-art color extraction and color math.
-- `light/` handles output backends.
+- `light/` handles Tuya Cloud output.
 - `config.py`, `constants.py`, and `models.py` hold shared cross-cutting
   pieces.
 
 That split makes future changes more local. For example:
 
-- adding another light backend should mostly stay inside `src/light/`
+- light-control changes should mostly stay inside `src/light/`
 - changing Spotify auth or caching should stay inside `src/spotify/`
 - tuning album-art extraction should stay inside `src/color/`
 - adding new CLI commands should mostly stay in `main.py`
@@ -446,9 +438,6 @@ That split makes future changes more local. For example:
 
 The main places to extend the app are:
 
-- new light backend:
-  - add a controller in `src/light/`
-  - update `build_light_controller()`
 - new color policy:
   - update `src/color/extractor.py` or `src/color/utils.py`
 - new Spotify behavior:
@@ -478,15 +467,13 @@ credentials. It covers:
   skipping
 - CLI behavior for manual RGB commands, malformed user input, and invalid
   polling intervals
-- light backend factory selection
+- Tuya light controller construction
 - Tuya spec inference and Tuya command payload generation
 
 ## Notes
 
 If the Wipro Next Smart Home app cannot be linked to a Tuya IoT project, direct
-Tuya Cloud control will not work even if the bulb is Tuya-based internally. In
-that case, expose the bulb through Home Assistant and use the `homeassistant`
-backend.
+Tuya Cloud control will not work even if the bulb is Tuya-based internally.
 
 ## Reference Docs
 

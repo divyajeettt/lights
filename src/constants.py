@@ -16,8 +16,6 @@ DEFAULT_TUYA_BRIGHTNESS_SCALE = 0.25
 DEFAULT_TUYA_MIN_VALUE_PERCENT = 1.0
 DEFAULT_SPOTIFY_CACHE_FILE = ".cache/spotify_token.json"
 
-HOME_ASSISTANT_LIGHT_TURN_ON_PATH = "/api/services/light/turn_on"
-
 TUYA_TOKEN_PATH = "/v1.0/token"
 TUYA_DEVICE_SPECIFICATIONS_PATH = "/v1.0/devices/{device_id}/specifications"
 TUYA_DEVICE_STATUS_PATH = "/v1.0/devices/{device_id}/status"
