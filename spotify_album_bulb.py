@@ -3,35 +3,18 @@ from __future__ import annotations
 
 import argparse
 import sys
-from pathlib import Path
 
 from src.color.extractor import dominant_rgb_from_url
 from src.color.utils import parse_rgb
 from src.color.utils import rgb_hex
 from src.config import ConfigError
-from src.config import env
 from src.config import env_float
 from src.config import load_dotenv
-from src.config import validate_spotify_client_id
-from src.constants import DEFAULT_SPOTIFY_REDIRECT_URI
 from src.light.factory import build_light_controller
 from src.light.tuya import print_tuya_spec
 from src.runner import run_watcher
 from src.runner import send_or_log_rgb
-from src.spotify.client import SpotifyClient
-
-
-def build_spotify(open_browser: bool) -> SpotifyClient:
-    client_id = env("SPOTIFY_CLIENT_ID", required=True)
-    validate_spotify_client_id(client_id)
-    redirect_uri = env("SPOTIFY_REDIRECT_URI", DEFAULT_SPOTIFY_REDIRECT_URI)
-    cache_file = Path(env("SPOTIFY_CACHE_FILE", ".cache/spotify_token.json"))
-    return SpotifyClient(
-        client_id,
-        redirect_uri,
-        cache_file,
-        open_browser=open_browser,
-    )
+from src.spotify.factory import build_spotify
 
 
 def main() -> int:
