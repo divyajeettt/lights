@@ -43,7 +43,7 @@ from src.enums import (
 )
 from src.models import Color
 
-from .base import LightController
+from .base import SingleLightController
 
 
 def now_ms() -> int:
@@ -55,11 +55,11 @@ def json_dumps(data: Any) -> str:
 
 
 class TuyaCloudClient:
-    def __init__(self) -> None:
+    def __init__(self, device_id: str | None = None) -> None:
         self.endpoint = env(TuyaEnvVar.ENDPOINT, DEFAULT_TUYA_ENDPOINT).rstrip("/")
         self.access_id = env(TuyaEnvVar.ACCESS_ID, required=True)
         self.access_secret = env(TuyaEnvVar.ACCESS_SECRET, required=True)
-        self.device_id = env(TuyaEnvVar.DEVICE_ID, required=True)
+        self.device_id = device_id or env(TuyaEnvVar.DEVICE_ID, required=True)
         self.access_token = ""
         self.expires_at = 0
 
@@ -313,9 +313,10 @@ def infer_tuya_light_spec(specification: dict[str, Any]) -> TuyaLightSpec:
     )
 
 
-class TuyaCloudLightController(LightController):
-    def __init__(self) -> None:
-        self.client = TuyaCloudClient()
+class TuyaCloudLightController(SingleLightController):
+    def __init__(self, device_id: str | None = None, label: str | None = None) -> None:
+        self.client = TuyaCloudClient(device_id=device_id)
+        self.label = label or self.client.device_id
         self.spec = infer_tuya_light_spec(self.client.device_specification())
         self.min_value_percent = env_float(
             TuyaEnvVar.MIN_VALUE_PERCENT,
@@ -325,6 +326,10 @@ class TuyaCloudLightController(LightController):
             TuyaEnvVar.ENSURE_ON_COLOR_MODE,
             False,
         )
+
+    @property
+    def light_labels(self) -> tuple[str, ...]:
+        return (self.label,)
 
     def set_rgb(self, rgb: Color) -> None:
         hsv = rgb_to_hsv_command(

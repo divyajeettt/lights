@@ -19,3 +19,11 @@ class TrackColor:
     label: str
     rgb: Color
     fallback_used: bool = False
+
+
+@dataclass(frozen=True)
+class TrackLightColors:
+    track_id: str
+    label: str
+    rgbs: list[Color]
+    fallback_used: bool = False

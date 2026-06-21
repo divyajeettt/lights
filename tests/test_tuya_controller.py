@@ -5,6 +5,7 @@ from src.light import TuyaCloudLightController, TuyaLightSpec
 
 class StubTuyaClient:
     def __init__(self) -> None:
+        self.device_id = "device-1"
         self.commands = None
 
     def device_specification(self):
@@ -31,7 +32,11 @@ def make_controller(
         v_max=1000,
         color_value_format=color_value_format,
     )
-    monkeypatch.setattr(tuya_module, "TuyaCloudClient", lambda: client)
+    monkeypatch.setattr(
+        tuya_module,
+        "TuyaCloudClient",
+        lambda device_id=None: client,
+    )
     monkeypatch.setattr(tuya_module, "infer_tuya_light_spec", lambda _spec: spec)
     monkeypatch.setenv(
         TuyaEnvVar.ENSURE_ON_COLOR_MODE,

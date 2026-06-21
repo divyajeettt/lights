@@ -9,10 +9,10 @@ from src.enums import (
 from src.models import Color
 from src.spotify import request_json
 
-from .base import LightController
+from .base import SingleLightController
 
 
-class HomeAssistantLightController(LightController):
+class HomeAssistantLightController(SingleLightController):
     def __init__(self) -> None:
         self.base_url = env(HomeAssistantEnvVar.URL, required=True).rstrip("/")
         self.token = env(HomeAssistantEnvVar.TOKEN, required=True)

@@ -33,7 +33,6 @@ from src.enums import (
     SpotifyTokenField,
 )
 
-
 SPOTIFY_CALLBACK_TIMEOUT_SECONDS = 300
 SPOTIFY_CALLBACK_POLL_SECONDS = 1.0
 

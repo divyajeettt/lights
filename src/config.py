@@ -58,6 +58,16 @@ def env_bool(name: str, default: bool) -> bool:
     raise ConfigError(f"{name} must be true or false")
 
 
+def env_csv(name: str, default: str | None = None, required: bool = False) -> list[str]:
+    raw_value = env(name, default, required)
+    if not raw_value:
+        return []
+    values = [item.strip() for item in raw_value.split(",")]
+    if any(not item for item in values):
+        raise ConfigError(f"{name} must be a comma-separated list without empty values")
+    return values
+
+
 def validate_spotify_client_id(client_id: str) -> None:
     value = client_id.strip()
     if value in SPOTIFY_CLIENT_ID_PLACEHOLDERS:

@@ -62,6 +62,27 @@ def is_usable_album_color(
     )
 
 
+def derive_palette_variants(rgb: Color, count: int) -> list[Color]:
+    if count <= 0:
+        return []
+    r, g, b = (channel / RGB_BYTE_MAX for channel in rgb)
+    h, s, v = colorsys.rgb_to_hsv(r, g, b)
+    variants = [rgb]
+    for index in range(1, count):
+        next_h = (h + index / count) % 1.0
+        next_s = max(0.35, s)
+        next_v = max(0.35, v)
+        nr, ng, nb = colorsys.hsv_to_rgb(next_h, next_s, next_v)
+        variants.append(
+            (
+                int(round(nr * RGB_BYTE_MAX)),
+                int(round(ng * RGB_BYTE_MAX)),
+                int(round(nb * RGB_BYTE_MAX)),
+            )
+        )
+    return variants
+
+
 def rgb_to_hsv_command(
     rgb: Color,
     h_max: int = DEFAULT_HUE_MAX,

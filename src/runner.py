@@ -4,9 +4,10 @@ import sys
 import time
 from typing import Any
 
-from src.color import album_rgb_from_url, rgb_hex
+from src.color import album_palette_from_url, album_rgb_from_url, rgb_hex
+from src.enums import LightColorMode
 from src.light import LightController
-from src.models import TrackColor, TrackSummary
+from src.models import TrackColor, TrackLightColors, TrackSummary
 from src.spotify import SpotifyClient, SpotifyRateLimitError
 
 
@@ -67,6 +68,30 @@ def track_color_from_summary(summary: TrackSummary) -> TrackColor | None:
     )
 
 
+def track_light_colors_from_summary(
+    summary: TrackSummary,
+    light_count: int,
+    color_mode: LightColorMode,
+) -> TrackLightColors | None:
+    image_url = best_album_image(summary.item)
+    if not image_url:
+        print(f"No album image for {summary.label}")
+        return None
+    if color_mode == LightColorMode.SAME:
+        rgb, fallback_used = album_rgb_from_url(image_url)
+        rgbs = [rgb] * light_count
+    elif color_mode == LightColorMode.ALBUM_PALETTE:
+        rgbs, fallback_used = album_palette_from_url(image_url, count=light_count)
+    else:
+        raise ValueError(f"Unsupported light color mode: {color_mode}")
+    return TrackLightColors(
+        track_id=summary.track_id,
+        label=summary.label,
+        rgbs=rgbs,
+        fallback_used=fallback_used,
+    )
+
+
 def apply_track_color(
     controller: LightController | None,
     track: TrackColor,
@@ -80,20 +105,54 @@ def apply_track_color(
     print("Bulb color updated.")
 
 
+def apply_track_light_colors(
+    controller: LightController | None,
+    track: TrackLightColors,
+    light_labels: list[str],
+) -> None:
+    suffix = " (fallback color)" if track.fallback_used else ""
+    colors = ", ".join(
+        f"{label}={rgb_hex(rgb)}"
+        for label, rgb in zip(light_labels, track.rgbs, strict=False)
+    )
+    print(f"{track.label} -> {colors}{suffix}")
+    if controller is None:
+        print(f"Dry run: would set {colors}")
+        return
+    if hasattr(controller, "set_rgbs"):
+        controller.set_rgbs(track.rgbs)
+    else:
+        controller.set_rgb(track.rgbs[0])
+    print("Bulb colors updated.")
+
+
 def run_watcher(
     spotify: SpotifyClient,
     controller: LightController | None,
     poll_seconds: float,
     dry_run_once: bool,
+    light_count: int = 1,
+    color_mode: LightColorMode = LightColorMode.ALBUM_PALETTE,
 ) -> int:
     last_track_id = None
+    default_labels = [f"bulb {index + 1}" for index in range(light_count)]
+    light_labels = (
+        list(getattr(controller, "light_labels", default_labels))
+        if controller is not None
+        else default_labels
+    )
 
     while True:
         try:
             summary = current_track_summary(spotify)
             if summary and summary.track_id != last_track_id:
-                if (track := track_color_from_summary(summary)):
-                    apply_track_color(controller, track)
+                track = track_light_colors_from_summary(
+                    summary,
+                    light_count=light_count,
+                    color_mode=color_mode,
+                )
+                if track:
+                    apply_track_light_colors(controller, track, light_labels)
                 last_track_id = summary.track_id
         except SpotifyRateLimitError as exc:
             print(

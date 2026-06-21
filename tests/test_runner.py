@@ -1,5 +1,6 @@
 import pytest
 
+from src.enums import LightColorMode
 from src.runner import current_track_summary, run_watcher
 from src.spotify import SpotifyRateLimitError
 
@@ -10,6 +11,16 @@ class StubController:
 
     def set_rgb(self, rgb: tuple[int, int, int]) -> None:
         self.calls.append(rgb)
+
+
+class StubGroupController:
+    light_labels = ("left", "right")
+
+    def __init__(self) -> None:
+        self.calls = []
+
+    def set_rgbs(self, rgbs):
+        self.calls.append(list(rgbs))
 
 
 class StubSpotify:
@@ -63,13 +74,14 @@ def test_run_watcher_applies_track_once_without_controller(capsys) -> None:
             controller=None,
             poll_seconds=0.0,
             dry_run_once=True,
+            color_mode=LightColorMode.SAME,
         )
     finally:
         original.album_rgb_from_url = old_album_rgb_from_url
 
     captured = capsys.readouterr()
     assert result == 0
-    assert "Song - Artist -> #00aaff" in captured.out
+    assert "Song - Artist -> bulb 1=#00aaff" in captured.out
 
 
 def test_current_track_summary_returns_none_for_non_track_item(capsys) -> None:
@@ -180,10 +192,34 @@ def test_run_watcher_skips_album_color_for_unchanged_track(monkeypatch) -> None:
             controller=controller,
             poll_seconds=0.0,
             dry_run_once=False,
+            color_mode=LightColorMode.SAME,
         )
 
     assert album_calls == ["https://example.com/a.jpg"]
     assert controller.calls == [(0, 170, 255)]
+
+
+def test_run_watcher_defaults_to_album_palette_for_multiple_lights(monkeypatch) -> None:
+    spotify = StubSpotify([playback_payload()])
+    controller = StubGroupController()
+
+    original = __import__("src.runner", fromlist=["album_palette_from_url"])
+    monkeypatch.setattr(
+        original,
+        "album_palette_from_url",
+        lambda _url, count: ([(0, 170, 255), (255, 102, 0)][:count], False),
+    )
+
+    result = run_watcher(
+        spotify=spotify,
+        controller=controller,
+        poll_seconds=0.0,
+        dry_run_once=True,
+        light_count=2,
+    )
+
+    assert result == 0
+    assert controller.calls == [[(0, 170, 255), (255, 102, 0)]]
 
 
 def test_run_watcher_retries_same_track_after_color_error(monkeypatch) -> None:
@@ -220,6 +256,7 @@ def test_run_watcher_retries_same_track_after_color_error(monkeypatch) -> None:
             controller=controller,
             poll_seconds=0.0,
             dry_run_once=False,
+            color_mode=LightColorMode.SAME,
         )
 
     assert album_calls == 2

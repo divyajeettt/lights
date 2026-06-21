@@ -4,10 +4,10 @@ import argparse
 import sys
 
 from src.color import parse_rgb, rgb_hex
-from src.config import ConfigError, env_float, load_dotenv
+from src.config import ConfigError, env, env_float, load_dotenv
 from src.constants import DEFAULT_POLL_SECONDS
-from src.enums import AppEnvVar
-from src.light import build_light_controller
+from src.enums import AppEnvVar, LightColorMode, LightEnvVar
+from src.light import build_light_controller, configured_light_count
 from src.models import Color
 from src.runner import run_watcher
 from src.spotify import build_spotify
@@ -22,6 +22,14 @@ def _validated_poll_seconds(poll_seconds: float) -> float:
     if poll_seconds <= 0:
         raise ValueError("POLL_SECONDS must be greater than 0")
     return poll_seconds
+
+
+def _light_color_mode() -> LightColorMode:
+    raw_mode = env(LightEnvVar.COLOR_MODE, LightColorMode.ALBUM_PALETTE).lower()
+    try:
+        return LightColorMode(raw_mode)
+    except ValueError as exc:
+        raise ConfigError("LIGHT_COLOR_MODE must be same or album_palette") from exc
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -59,6 +67,8 @@ def main() -> int:
         poll_seconds = _validated_poll_seconds(
             env_float(AppEnvVar.POLL_SECONDS, DEFAULT_POLL_SECONDS)
         )
+        color_mode = _light_color_mode()
+        light_count = configured_light_count(required=not args.dry_run_once)
         spotify = build_spotify()
         controller = None if args.dry_run_once else build_light_controller()
         return run_watcher(
@@ -66,6 +76,8 @@ def main() -> int:
             controller=controller,
             poll_seconds=poll_seconds,
             dry_run_once=args.dry_run_once,
+            light_count=light_count,
+            color_mode=color_mode,
         )
     except ConfigError as exc:
         print(f"Configuration error: {exc}", file=sys.stderr)

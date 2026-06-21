@@ -15,7 +15,7 @@ from src.constants import (
 from src.enums import AlbumColorEnvVar
 from src.models import Color
 
-from .utils import is_usable_album_color, parse_rgb
+from .utils import derive_palette_variants, is_usable_album_color, parse_rgb
 
 
 def image_pixel_data(image: Image.Image) -> Any:
@@ -24,13 +24,12 @@ def image_pixel_data(image: Image.Image) -> Any:
     return image.getdata()
 
 
-def album_rgb_from_image_bytes(
+def _palette_candidates_from_image_bytes(
     image_bytes: bytes,
     colors: int = 16,
     min_luminance: float | None = None,
     min_saturation: float | None = None,
-    fallback_rgb: Color | None = None,
-) -> tuple[Color, bool]:
+) -> list[tuple[int, Color]]:
     if min_luminance is None:
         min_luminance = env_float(
             AlbumColorEnvVar.MIN_LUMINANCE,
@@ -40,10 +39,6 @@ def album_rgb_from_image_bytes(
         min_saturation = env_float(
             AlbumColorEnvVar.MIN_SATURATION,
             DEFAULT_ALBUM_COLOR_MIN_SATURATION,
-        )
-    if fallback_rgb is None:
-        fallback_rgb = parse_rgb(
-            env(AlbumColorEnvVar.FALLBACK, DEFAULT_ALBUM_COLOR_FALLBACK)
         )
 
     image = Image.open(BytesIO(image_bytes)).convert("RGBA")
@@ -72,13 +67,65 @@ def album_rgb_from_image_bytes(
         if is_usable_album_color(rgb, min_luminance, min_saturation):
             candidates.append((count, rgb))
 
-    if not candidates:
-        return fallback_rgb, True
+    return sorted(candidates, key=lambda item: item[0], reverse=True)
 
-    return max(candidates, key=lambda item: item[0])[1], False
+
+def album_palette_from_image_bytes(
+    image_bytes: bytes,
+    count: int,
+    colors: int = 16,
+    min_luminance: float | None = None,
+    min_saturation: float | None = None,
+    fallback_rgb: Color | None = None,
+) -> tuple[list[Color], bool]:
+    if count <= 0:
+        raise ValueError("Palette color count must be greater than 0")
+    if fallback_rgb is None:
+        fallback_rgb = parse_rgb(
+            env(AlbumColorEnvVar.FALLBACK, DEFAULT_ALBUM_COLOR_FALLBACK)
+        )
+
+    candidates = _palette_candidates_from_image_bytes(
+        image_bytes,
+        colors=colors,
+        min_luminance=min_luminance,
+        min_saturation=min_saturation,
+    )
+    if not candidates:
+        return derive_palette_variants(fallback_rgb, count), True
+
+    palette = [rgb for _candidate_count, rgb in candidates[:count]]
+    if len(palette) < count:
+        variants = derive_palette_variants(palette[0], count)
+        palette.extend(variants[len(palette) : count])
+    return palette, False
+
+
+def album_rgb_from_image_bytes(
+    image_bytes: bytes,
+    colors: int = 16,
+    min_luminance: float | None = None,
+    min_saturation: float | None = None,
+    fallback_rgb: Color | None = None,
+) -> tuple[Color, bool]:
+    palette, fallback_used = album_palette_from_image_bytes(
+        image_bytes,
+        count=1,
+        colors=colors,
+        min_luminance=min_luminance,
+        min_saturation=min_saturation,
+        fallback_rgb=fallback_rgb,
+    )
+    return palette[0], fallback_used
 
 
 def album_rgb_from_url(image_url: str) -> tuple[Color, bool]:
     response = requests.get(image_url, timeout=20)
     response.raise_for_status()
     return album_rgb_from_image_bytes(response.content)
+
+
+def album_palette_from_url(image_url: str, count: int) -> tuple[list[Color], bool]:
+    response = requests.get(image_url, timeout=20)
+    response.raise_for_status()
+    return album_palette_from_image_bytes(response.content, count=count)

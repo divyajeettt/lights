@@ -18,8 +18,14 @@ class LightBackend(StrEnum):
     HOME_ASSISTANT = "homeassistant"
 
 
+class LightColorMode(StrEnum):
+    SAME = "same"
+    ALBUM_PALETTE = "album_palette"
+
+
 class LightEnvVar(StrEnum):
     BACKEND = "LIGHT_BACKEND"
+    COLOR_MODE = "LIGHT_COLOR_MODE"
 
 
 class HomeAssistantEnvVar(StrEnum):
@@ -93,6 +99,8 @@ class TuyaEnvVar(StrEnum):
     COLOR_CODE = "TUYA_COLOR_CODE"
     COLOR_VALUE_FORMAT = "TUYA_COLOR_VALUE_FORMAT"
     DEVICE_ID = "TUYA_DEVICE_ID"
+    DEVICE_IDS = "TUYA_DEVICE_IDS"
+    DEVICE_LABELS = "TUYA_DEVICE_LABELS"
     ENDPOINT = "TUYA_ENDPOINT"
     ENSURE_ON_COLOR_MODE = "TUYA_ENSURE_ON_COLOR_MODE"
     MIN_VALUE_PERCENT = "TUYA_MIN_VALUE_PERCENT"
