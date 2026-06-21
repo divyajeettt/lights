@@ -252,6 +252,187 @@ python main.py --rgb '#00aaff'
 On the first run, the script opens Spotify login in your browser and stores a
 refresh token under `.cache/spotify_token.json`.
 
+## Architecture
+
+### Runtime flow
+
+The app starts in `main.py`.
+
+1. It loads `.env` values with `load_dotenv()`.
+2. It parses CLI flags such as `--dry-run`, `--once`, `--rgb`, and
+   `--print-tuya-spec`.
+3. For direct actions:
+   - `--print-tuya-spec` prints the Tuya device specification.
+   - `--image-url` extracts a dominant color from a given image URL.
+   - `--rgb` sends a manual RGB color to the configured light backend.
+4. For normal watcher mode:
+   - `build_spotify()` creates the Spotify client.
+   - `build_light_controller()` creates the configured light backend unless
+     `--dry-run` is enabled.
+   - `run_watcher()` polls Spotify, extracts the album-art color for the
+     current track, and updates the bulb when the track changes.
+
+### Architecture diagram
+
+```mermaid
+flowchart TD
+    main["main.py<br/>Starts the app and handles CLI commands"]
+    spotify["Spotify integration<br/>Reads the current track and album art"]
+    color["Color extraction<br/>Chooses a usable color from album art"]
+    light["Light control<br/>Sends the chosen color to the configured backend"]
+    config["Shared configuration<br/>Environment values, defaults, and models"]
+
+    spotify_api["Spotify"]
+    backend["Tuya Cloud or Home Assistant"]
+
+    main --> spotify
+    main --> color
+    main --> light
+    main --> config
+
+    spotify --> spotify_api
+    spotify --> color
+    color --> light
+    light --> backend
+```
+
+### Module layout
+
+#### `main.py`
+
+CLI entrypoint. It owns argument parsing, top-level control flow, and
+configuration error handling.
+
+#### `src/config.py`
+
+Environment and configuration helpers:
+
+- `.env` loading
+- required/optional environment lookup
+- boolean and float parsing
+- Spotify Client ID validation
+
+This keeps config parsing out of the feature modules.
+
+#### `src/constants.py`
+
+Shared string and numeric defaults used across the project, such as Spotify
+URLs, default polling interval, and default fallback color.
+
+#### `src/models.py`
+
+Shared application models:
+
+- `Color`: RGB tuple alias used across the project
+- `TrackSummary`: normalized track metadata used by the runner
+- `TrackColor`: track identity plus resolved RGB color
+
+#### `src/runner.py`
+
+Application orchestration logic. This is the main runtime layer between
+Spotify, album-art color extraction, and the light backend.
+
+Key responsibilities:
+
+- get the current Spotify track
+- normalize playback data into `TrackSummary`
+- resolve album art into `TrackColor`
+- avoid duplicate light updates when the track has not changed
+- handle dry-run behavior
+- keep the watcher alive across transient runtime failures
+- back off on Spotify rate limits
+
+#### `src/color/`
+
+Color extraction and conversion logic.
+
+- `src/color/utils.py`
+  - RGB parsing and formatting
+  - luminance and saturation helpers
+  - RGB to HSV command conversion for Tuya
+- `src/color/extractor.py`
+  - fetch image bytes from album-art URLs
+  - quantize artwork colors
+  - filter unusable colors
+  - apply fallback color when needed
+
+This package is intentionally pure or close to pure except for image download.
+
+#### `src/spotify/`
+
+Spotify integration.
+
+- `src/spotify/factory.py`
+  - validates required Spotify config
+  - builds a `SpotifyClient`
+- `src/spotify/client.py`
+  - PKCE authorization flow
+  - token caching and refresh
+  - Spotify Web API calls
+  - shared JSON request helper
+  - rate-limit parsing
+
+This package is the only place that should know the details of Spotify auth
+and API request structure.
+
+#### `src/light/`
+
+Light backend abstraction and implementations.
+
+- `src/light/base.py`
+  - `LightController` protocol used by the runner
+- `src/light/factory.py`
+  - selects the configured backend
+- `src/light/tuya.py`
+  - Tuya signing and API client
+  - Tuya device specification inference
+  - Tuya light controller implementation
+  - `print_tuya_spec()`
+- `src/light/homeassistant.py`
+  - Home Assistant light controller implementation
+
+The runner depends only on the `LightController` interface, so backend-specific
+behavior stays isolated inside this package.
+
+#### `src/__init__.py` and package `__init__.py` files
+
+These re-export commonly used symbols so imports stay short and consistent.
+
+### Design intent
+
+The refactor separates the codebase into layers with clear responsibilities:
+
+- `main.py` handles process startup and CLI behavior.
+- `runner.py` handles application flow.
+- `spotify/` handles Spotify communication.
+- `color/` handles album-art color extraction and color math.
+- `light/` handles output backends.
+- `config.py`, `constants.py`, and `models.py` hold shared cross-cutting
+  pieces.
+
+That split makes future changes more local. For example:
+
+- adding another light backend should mostly stay inside `src/light/`
+- changing Spotify auth or caching should stay inside `src/spotify/`
+- tuning album-art extraction should stay inside `src/color/`
+- adding new CLI commands should mostly stay in `main.py`
+
+### Extension points
+
+The main places to extend the app are:
+
+- new light backend:
+  - add a controller in `src/light/`
+  - update `build_light_controller()`
+- new color policy:
+  - update `src/color/extractor.py` or `src/color/utils.py`
+- new Spotify behavior:
+  - extend `SpotifyClient` or the runner helpers
+- new commands:
+  - add CLI flags in `main.py`
+  - route them into existing modules instead of adding feature logic directly
+    to the entrypoint
+
 ## Tests
 
 Run the test suite from the project virtual environment:
