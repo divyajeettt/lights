@@ -5,7 +5,12 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from src.constants import DEFAULT_SPOTIFY_REDIRECT_URI
+TRUE_ENV_VALUES = {"1", "true", "yes", "y", "on"}
+FALSE_ENV_VALUES = {"0", "false", "no", "n", "off"}
+SPOTIFY_CLIENT_ID_PLACEHOLDERS = {
+    "your_spotify_client_id",
+    "your_spotify_client_id_here",
+}
 
 
 class ConfigError(RuntimeError):
@@ -45,16 +50,16 @@ def env_bool(name: str, default: bool) -> bool:
     if value is None or value == "":
         return default
     normalized = value.strip().lower()
-    if normalized in {"1", "true", "yes", "y", "on"}:
+    if normalized in TRUE_ENV_VALUES:
         return True
-    if normalized in {"0", "false", "no", "n", "off"}:
+    if normalized in FALSE_ENV_VALUES:
         return False
     raise ConfigError(f"{name} must be true or false")
 
 
 def validate_spotify_client_id(client_id: str) -> None:
     value = client_id.strip()
-    if value in {"your_spotify_client_id", "your_spotify_client_id_here"}:
+    if value in SPOTIFY_CLIENT_ID_PLACEHOLDERS:
         raise ConfigError(
             "SPOTIFY_CLIENT_ID is still the placeholder. Use the Client ID "
             "from https://developer.spotify.com/dashboard, not your Spotify "
@@ -72,7 +77,3 @@ def validate_spotify_client_id(client_id: str) -> None:
             "are normally 32 alphanumeric characters from the Spotify "
             "Developer Dashboard."
         )
-
-
-def default_spotify_redirect_uri() -> str:
-    return DEFAULT_SPOTIFY_REDIRECT_URI

@@ -1,17 +1,25 @@
 import pytest
 
-from src.config import ConfigError, env_bool, validate_spotify_client_id
+from src.config import (
+    ConfigError,
+    env_bool,
+    validate_spotify_client_id,
+)
+
+FEATURE_FLAG = "FEATURE_FLAG"
+INVALID_BOOL_VALUE = "maybe"
+VALID_SPOTIFY_CLIENT_ID = "a" * 32
 
 
 def test_env_bool_parses_true_value(monkeypatch) -> None:
-    monkeypatch.setenv("FEATURE_FLAG", "yes")
-    assert env_bool("FEATURE_FLAG", default=False) is True
+    monkeypatch.setenv(FEATURE_FLAG, "yes")
+    assert env_bool(FEATURE_FLAG, default=False) is True
 
 
 def test_env_bool_rejects_invalid_value(monkeypatch) -> None:
-    monkeypatch.setenv("FEATURE_FLAG", "maybe")
+    monkeypatch.setenv(FEATURE_FLAG, INVALID_BOOL_VALUE)
     with pytest.raises(ConfigError):
-        env_bool("FEATURE_FLAG", default=False)
+        env_bool(FEATURE_FLAG, default=False)
 
 
 def test_validate_spotify_client_id_rejects_placeholder() -> None:
@@ -20,4 +28,4 @@ def test_validate_spotify_client_id_rejects_placeholder() -> None:
 
 
 def test_validate_spotify_client_id_accepts_valid_value() -> None:
-    validate_spotify_client_id("a" * 32)
+    validate_spotify_client_id(VALID_SPOTIFY_CLIENT_ID)

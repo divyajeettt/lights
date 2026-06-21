@@ -19,8 +19,18 @@ from src.config import ConfigError
 from src.constants import (
     SPOTIFY_AUTH_URL,
     SPOTIFY_CURRENTLY_PLAYING_URL,
+    SPOTIFY_DEFAULT_CALLBACK_HOST,
+    SPOTIFY_LOCAL_REDIRECT_HOSTS,
+    SPOTIFY_LOCAL_REDIRECT_SCHEME,
     SPOTIFY_SCOPE,
     SPOTIFY_TOKEN_URL,
+)
+from src.enums import (
+    SpotifyGrantType,
+    SpotifyOAuthParam,
+    SpotifyPkceMethod,
+    SpotifyResponseType,
+    SpotifyTokenField,
 )
 
 
@@ -62,9 +72,9 @@ class SpotifyCallbackHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
         params = urllib.parse.parse_qs(parsed.query)
-        self.server.auth_code = params.get("code", [""])[0]
-        self.server.auth_state = params.get("state", [""])[0]
-        self.server.auth_error = params.get("error", [""])[0]
+        self.server.auth_code = params.get(SpotifyOAuthParam.CODE, [""])[0]
+        self.server.auth_state = params.get(SpotifyOAuthParam.STATE, [""])[0]
+        self.server.auth_error = params.get(SpotifyOAuthParam.ERROR, [""])[0]
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.end_headers()
@@ -101,36 +111,46 @@ class SpotifyClient:
             return {}
 
     def _save_token(self, token: dict[str, Any]) -> None:
-        token["expires_at"] = int(time.time()) + int(token.get("expires_in", 3600)) - 60
-        if "refresh_token" not in token and self.token.get("refresh_token"):
-            token["refresh_token"] = self.token["refresh_token"]
+        expires_in = int(token.get(SpotifyTokenField.EXPIRES_IN, 3600))
+        token[SpotifyTokenField.EXPIRES_AT] = int(time.time()) + expires_in - 60
+        if SpotifyTokenField.REFRESH_TOKEN not in token and self.token.get(
+            SpotifyTokenField.REFRESH_TOKEN
+        ):
+            token[SpotifyTokenField.REFRESH_TOKEN] = self.token[
+                SpotifyTokenField.REFRESH_TOKEN
+            ]
         self.cache_file.parent.mkdir(parents=True, exist_ok=True)
         self.cache_file.write_text(json.dumps(token, indent=2, sort_keys=True))
         self.token = token
 
     def access_token(self) -> str:
-        if self.token.get("access_token") and int(
-            self.token.get("expires_at", 0)
+        if self.token.get(SpotifyTokenField.ACCESS_TOKEN) and int(
+            self.token.get(SpotifyTokenField.EXPIRES_AT, 0)
         ) > int(time.time()):
-            return self.token["access_token"]
-        if self.token.get("refresh_token"):
+            return self.token[SpotifyTokenField.ACCESS_TOKEN]
+        if self.token.get(SpotifyTokenField.REFRESH_TOKEN):
             self._refresh_token()
-            return self.token["access_token"]
+            return self.token[SpotifyTokenField.ACCESS_TOKEN]
         self._authorize()
-        return self.token["access_token"]
+        return self.token[SpotifyTokenField.ACCESS_TOKEN]
 
     def _refresh_token(self) -> None:
         payload = {
-            "grant_type": "refresh_token",
-            "refresh_token": self.token["refresh_token"],
-            "client_id": self.client_id,
+            SpotifyOAuthParam.GRANT_TYPE: SpotifyGrantType.REFRESH_TOKEN,
+            SpotifyOAuthParam.REFRESH_TOKEN: self.token[
+                SpotifyTokenField.REFRESH_TOKEN
+            ],
+            SpotifyOAuthParam.CLIENT_ID: self.client_id,
         }
         token = request_json("POST", SPOTIFY_TOKEN_URL, data=payload)
         self._save_token(token)
 
     def _authorize(self) -> None:
         parsed = urllib.parse.urlparse(self.redirect_uri)
-        if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "localhost"}:
+        if (
+            parsed.scheme != SPOTIFY_LOCAL_REDIRECT_SCHEME
+            or parsed.hostname not in SPOTIFY_LOCAL_REDIRECT_HOSTS
+        ):
             raise ConfigError(
                 "SPOTIFY_REDIRECT_URI must be a localhost HTTP URL for this " "script"
             )
@@ -141,18 +161,18 @@ class SpotifyClient:
         state = secrets.token_urlsafe(24)
         query = urllib.parse.urlencode(
             {
-                "client_id": self.client_id,
-                "response_type": "code",
-                "redirect_uri": self.redirect_uri,
-                "scope": SPOTIFY_SCOPE,
-                "state": state,
-                "code_challenge_method": "S256",
-                "code_challenge": code_challenge,
+                SpotifyOAuthParam.CLIENT_ID: self.client_id,
+                SpotifyOAuthParam.RESPONSE_TYPE: SpotifyResponseType.CODE,
+                SpotifyOAuthParam.REDIRECT_URI: self.redirect_uri,
+                SpotifyOAuthParam.SCOPE: SPOTIFY_SCOPE,
+                SpotifyOAuthParam.STATE: state,
+                SpotifyOAuthParam.CODE_CHALLENGE_METHOD: SpotifyPkceMethod.S256,
+                SpotifyOAuthParam.CODE_CHALLENGE: code_challenge,
             }
         )
         auth_url = f"{SPOTIFY_AUTH_URL}?{query}"
 
-        host = parsed.hostname or "127.0.0.1"
+        host = parsed.hostname or SPOTIFY_DEFAULT_CALLBACK_HOST
         port = parsed.port or 80
         server = HTTPServer((host, port), SpotifyCallbackHandler)
         server.auth_code = ""
@@ -173,18 +193,18 @@ class SpotifyClient:
             raise RuntimeError("Spotify authorization failed: state mismatch")
 
         payload = {
-            "client_id": self.client_id,
-            "grant_type": "authorization_code",
-            "code": server.auth_code,
-            "redirect_uri": self.redirect_uri,
-            "code_verifier": code_verifier,
+            SpotifyOAuthParam.CLIENT_ID: self.client_id,
+            SpotifyOAuthParam.GRANT_TYPE: SpotifyGrantType.AUTHORIZATION_CODE,
+            SpotifyOAuthParam.CODE: server.auth_code,
+            SpotifyOAuthParam.REDIRECT_URI: self.redirect_uri,
+            SpotifyOAuthParam.CODE_VERIFIER: code_verifier,
         }
         token = request_json("POST", SPOTIFY_TOKEN_URL, data=payload)
         self._save_token(token)
 
     def currently_playing(self) -> dict[str, Any] | None:
         headers = {"Authorization": f"Bearer {self.access_token()}"}
-        params = {"additional_types": "track"}
+        params = {SpotifyOAuthParam.ADDITIONAL_TYPES: "track"}
         response = requests.get(
             SPOTIFY_CURRENTLY_PLAYING_URL,
             headers=headers,
@@ -193,9 +213,13 @@ class SpotifyClient:
         )
         if response.status_code == 204:
             return None
-        if response.status_code == 401 and self.token.get("refresh_token"):
+        if response.status_code == 401 and self.token.get(
+            SpotifyTokenField.REFRESH_TOKEN
+        ):
             self._refresh_token()
-            headers = {"Authorization": f"Bearer {self.token['access_token']}"}
+            headers = {
+                "Authorization": f"Bearer {self.token[SpotifyTokenField.ACCESS_TOKEN]}"
+            }
             response = requests.get(
                 SPOTIFY_CURRENTLY_PLAYING_URL,
                 headers=headers,

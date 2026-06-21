@@ -1,4 +1,5 @@
 import src.light.tuya as tuya_module
+from src.enums import TuyaEnvVar
 from src.light import TuyaCloudLightController, TuyaLightSpec
 
 
@@ -33,10 +34,10 @@ def make_controller(
     monkeypatch.setattr(tuya_module, "TuyaCloudClient", lambda: client)
     monkeypatch.setattr(tuya_module, "infer_tuya_light_spec", lambda _spec: spec)
     monkeypatch.setenv(
-        "TUYA_ENSURE_ON_COLOR_MODE",
+        TuyaEnvVar.ENSURE_ON_COLOR_MODE,
         "true" if ensure_on_color_mode else "false",
     )
-    monkeypatch.setenv("TUYA_MIN_VALUE_PERCENT", "35")
+    monkeypatch.setenv(TuyaEnvVar.MIN_VALUE_PERCENT, "35")
     return TuyaCloudLightController(), client
 
 
@@ -53,7 +54,11 @@ def test_tuya_controller_sends_only_color_command_by_default(
     assert client.commands == [
         {
             "code": "colour_data_v2",
-            "value": {"h": 200, "s": 1000, "v": 1000},
+            "value": {
+                "h": 200,
+                "s": 1000,
+                "v": 1000,
+            },
         }
     ]
 
@@ -66,8 +71,14 @@ def test_tuya_controller_can_include_mode_commands(monkeypatch) -> None:
 
     controller.set_rgb((0, 170, 255))
 
-    assert client.commands[0] == {"code": "switch_led", "value": True}
-    assert client.commands[1] == {"code": "work_mode", "value": "colour"}
+    assert client.commands[0] == {
+        "code": "switch_led",
+        "value": True,
+    }
+    assert client.commands[1] == {
+        "code": "work_mode",
+        "value": "colour",
+    }
     assert client.commands[2]["code"] == "colour_data_v2"
 
 
