@@ -1,6 +1,5 @@
 import src.light.tuya as tuya_module
-from src.light.tuya import TuyaCloudLightController
-from src.light.tuya import TuyaLightSpec
+from src.light import TuyaCloudLightController, TuyaLightSpec
 
 
 class StubTuyaClient:

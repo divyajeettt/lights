@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.config import env
-from src.config import validate_spotify_client_id
+from src.config import env, validate_spotify_client_id
 from src.constants import DEFAULT_SPOTIFY_REDIRECT_URI
-from src.spotify.client import SpotifyClient
+
+from .client import SpotifyClient
 
 
 def build_spotify(open_browser: bool) -> SpotifyClient:

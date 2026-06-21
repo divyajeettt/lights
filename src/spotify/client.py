@@ -16,10 +16,12 @@ from typing import Any
 import requests
 
 from src.config import ConfigError
-from src.constants import SPOTIFY_AUTH_URL
-from src.constants import SPOTIFY_CURRENTLY_PLAYING_URL
-from src.constants import SPOTIFY_SCOPE
-from src.constants import SPOTIFY_TOKEN_URL
+from src.constants import (
+    SPOTIFY_AUTH_URL,
+    SPOTIFY_CURRENTLY_PLAYING_URL,
+    SPOTIFY_SCOPE,
+    SPOTIFY_TOKEN_URL,
+)
 
 
 class SpotifyRateLimitError(RuntimeError):
@@ -57,18 +59,12 @@ def request_json(method: str, url: str, **kwargs: Any) -> Any:
 class SpotifyCallbackHandler(BaseHTTPRequestHandler):
     server_version = "SpotifyCallback/1.0"
 
-    def do_GET(self) -> None:  # noqa: N802
+    def do_GET(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
         params = urllib.parse.parse_qs(parsed.query)
-        self.server.auth_code = (
-            params.get("code", [""])[0]
-        )  # type: ignore[attr-defined]
-        self.server.auth_state = (
-            params.get("state", [""])[0]
-        )  # type: ignore[attr-defined]
-        self.server.auth_error = (
-            params.get("error", [""])[0]
-        )  # type: ignore[attr-defined]
+        self.server.auth_code = params.get("code", [""])[0]
+        self.server.auth_state = params.get("state", [""])[0]
+        self.server.auth_error = params.get("error", [""])[0]
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.end_headers()
@@ -105,9 +101,7 @@ class SpotifyClient:
             return {}
 
     def _save_token(self, token: dict[str, Any]) -> None:
-        token["expires_at"] = (
-            int(time.time()) + int(token.get("expires_in", 3600)) - 60
-        )
+        token["expires_at"] = int(time.time()) + int(token.get("expires_in", 3600)) - 60
         if "refresh_token" not in token and self.token.get("refresh_token"):
             token["refresh_token"] = self.token["refresh_token"]
         self.cache_file.parent.mkdir(parents=True, exist_ok=True)
@@ -115,10 +109,9 @@ class SpotifyClient:
         self.token = token
 
     def access_token(self) -> str:
-        if (
-            self.token.get("access_token")
-            and int(self.token.get("expires_at", 0)) > int(time.time())
-        ):
+        if self.token.get("access_token") and int(
+            self.token.get("expires_at", 0)
+        ) > int(time.time()):
             return self.token["access_token"]
         if self.token.get("refresh_token"):
             self._refresh_token()
@@ -137,20 +130,14 @@ class SpotifyClient:
 
     def _authorize(self) -> None:
         parsed = urllib.parse.urlparse(self.redirect_uri)
-        if (
-            parsed.scheme != "http"
-            or parsed.hostname not in {"127.0.0.1", "localhost"}
-        ):
+        if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "localhost"}:
             raise ConfigError(
-                "SPOTIFY_REDIRECT_URI must be a localhost HTTP URL for this "
-                "script"
+                "SPOTIFY_REDIRECT_URI must be a localhost HTTP URL for this " "script"
             )
 
         code_verifier = secrets.token_urlsafe(64)
         challenge = hashlib.sha256(code_verifier.encode("ascii")).digest()
-        code_challenge = (
-            base64.urlsafe_b64encode(challenge).decode("ascii").rstrip("=")
-        )
+        code_challenge = base64.urlsafe_b64encode(challenge).decode("ascii").rstrip("=")
         state = secrets.token_urlsafe(24)
         query = urllib.parse.urlencode(
             {
@@ -168,9 +155,9 @@ class SpotifyClient:
         host = parsed.hostname or "127.0.0.1"
         port = parsed.port or 80
         server = HTTPServer((host, port), SpotifyCallbackHandler)
-        server.auth_code = ""  # type: ignore[attr-defined]
-        server.auth_state = ""  # type: ignore[attr-defined]
-        server.auth_error = ""  # type: ignore[attr-defined]
+        server.auth_code = ""
+        server.auth_state = ""
+        server.auth_error = ""
 
         print("Open this URL to authorize Spotify:")
         print(auth_url)
@@ -180,17 +167,15 @@ class SpotifyClient:
         while not server.auth_code and not server.auth_error:
             server.handle_request()
 
-        if server.auth_error:  # type: ignore[attr-defined]
-            raise RuntimeError(
-                f"Spotify authorization failed: {server.auth_error}"
-            )  # type: ignore[attr-defined]
-        if server.auth_state != state:  # type: ignore[attr-defined]
+        if server.auth_error:
+            raise RuntimeError(f"Spotify authorization failed: {server.auth_error}")
+        if server.auth_state != state:
             raise RuntimeError("Spotify authorization failed: state mismatch")
 
         payload = {
             "client_id": self.client_id,
             "grant_type": "authorization_code",
-            "code": server.auth_code,  # type: ignore[attr-defined]
+            "code": server.auth_code,
             "redirect_uri": self.redirect_uri,
             "code_verifier": code_verifier,
         }

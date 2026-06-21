@@ -1,6 +1,5 @@
-from src.runner import run_watcher
-from src.runner import send_or_log_rgb
-from src.spotify.client import SpotifyRateLimitError
+from src.runner import run_watcher, send_or_log_rgb
+from src.spotify import SpotifyRateLimitError
 
 
 class StubController:

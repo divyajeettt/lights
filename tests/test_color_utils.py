@@ -1,6 +1,4 @@
-from src.color.utils import is_usable_album_color
-from src.color.utils import parse_rgb
-from src.color.utils import rgb_to_hsv_command
+from src.color import is_usable_album_color, parse_rgb, rgb_to_hsv_command
 
 
 def test_parse_rgb_parses_hex_string() -> None:

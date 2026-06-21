@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
-from typing import TypeAlias
-
+from typing import Any, TypeAlias
 
 Color: TypeAlias = tuple[int, int, int]
 

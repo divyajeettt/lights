@@ -4,17 +4,11 @@ from __future__ import annotations
 import argparse
 import sys
 
-from src.color.extractor import dominant_rgb_from_url
-from src.color.utils import parse_rgb
-from src.color.utils import rgb_hex
-from src.config import ConfigError
-from src.config import env_float
-from src.config import load_dotenv
-from src.light.factory import build_light_controller
-from src.light.tuya import print_tuya_spec
-from src.runner import run_watcher
-from src.runner import send_or_log_rgb
-from src.spotify.factory import build_spotify
+from src.color import dominant_rgb_from_url, parse_rgb, rgb_hex
+from src.config import ConfigError, env_float, load_dotenv
+from src.light import build_light_controller, print_tuya_spec
+from src.runner import run_watcher, send_or_log_rgb
+from src.spotify import build_spotify
 
 
 def main() -> int:
