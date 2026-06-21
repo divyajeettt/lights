@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
+from typing import TypeAlias
+
+
+Color: TypeAlias = tuple[int, int, int]
 
 
 @dataclass(frozen=True)
@@ -17,5 +21,5 @@ class TrackSummary:
 class TrackColor:
     track_id: str
     label: str
-    rgb: tuple[int, int, int]
+    rgb: Color
     fallback_used: bool = False

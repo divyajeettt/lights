@@ -12,6 +12,7 @@ from src.color.utils import is_usable_album_color
 from src.color.utils import parse_rgb
 from src.config import env
 from src.config import env_float
+from src.models import Color
 
 
 def image_pixel_data(image: Image.Image) -> Any:
@@ -25,8 +26,8 @@ def album_rgb_from_image_bytes(
     colors: int = 16,
     min_luminance: float | None = None,
     min_saturation: float | None = None,
-    fallback_rgb: tuple[int, int, int] | None = None,
-) -> tuple[tuple[int, int, int], bool]:
+    fallback_rgb: Color | None = None,
+) -> tuple[Color, bool]:
     if min_luminance is None:
         min_luminance = env_float("ALBUM_COLOR_MIN_LUMINANCE", 0.08)
     if min_saturation is None:
@@ -71,8 +72,8 @@ def dominant_rgb_from_image_bytes(
     colors: int = 16,
     min_luminance: float | None = None,
     min_saturation: float | None = None,
-    fallback_rgb: tuple[int, int, int] | None = None,
-) -> tuple[int, int, int]:
+    fallback_rgb: Color | None = None,
+) -> Color:
     rgb, _ = album_rgb_from_image_bytes(
         image_bytes,
         colors=colors,
@@ -83,12 +84,12 @@ def dominant_rgb_from_image_bytes(
     return rgb
 
 
-def album_rgb_from_url(image_url: str) -> tuple[tuple[int, int, int], bool]:
+def album_rgb_from_url(image_url: str) -> tuple[Color, bool]:
     response = requests.get(image_url, timeout=20)
     response.raise_for_status()
     return album_rgb_from_image_bytes(response.content)
 
 
-def dominant_rgb_from_url(image_url: str) -> tuple[int, int, int]:
+def dominant_rgb_from_url(image_url: str) -> Color:
     rgb, _ = album_rgb_from_url(image_url)
     return rgb

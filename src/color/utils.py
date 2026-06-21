@@ -5,6 +5,8 @@ from __future__ import annotations
 import colorsys
 from dataclasses import dataclass
 
+from src.models import Color
+
 
 @dataclass(frozen=True)
 class HsvCommand:
@@ -13,29 +15,29 @@ class HsvCommand:
     v: int
 
 
-def parse_rgb(value: str) -> tuple[int, int, int]:
+def parse_rgb(value: str) -> Color:
     cleaned = value.strip().lstrip("#")
     if len(cleaned) != 6:
         raise ValueError("RGB color must look like #00aaff")
     return tuple(int(cleaned[i : i + 2], 16) for i in (0, 2, 4))
 
 
-def rgb_hex(rgb: tuple[int, int, int]) -> str:
+def rgb_hex(rgb: Color) -> str:
     return "#{:02x}{:02x}{:02x}".format(*rgb)
 
 
-def relative_luminance(rgb: tuple[int, int, int]) -> float:
+def relative_luminance(rgb: Color) -> float:
     r, g, b = rgb
     return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
 
 
-def rgb_saturation(rgb: tuple[int, int, int]) -> float:
+def rgb_saturation(rgb: Color) -> float:
     r, g, b = (channel / 255 for channel in rgb)
     return colorsys.rgb_to_hsv(r, g, b)[1]
 
 
 def is_usable_album_color(
-    rgb: tuple[int, int, int],
+    rgb: Color,
     min_luminance: float,
     min_saturation: float,
 ) -> bool:
@@ -46,7 +48,7 @@ def is_usable_album_color(
 
 
 def rgb_to_hsv_command(
-    rgb: tuple[int, int, int],
+    rgb: Color,
     h_max: int = 360,
     s_max: int = 255,
     v_max: int = 255,

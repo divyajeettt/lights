@@ -27,6 +27,7 @@ from src.config import env_float
 from src.config import load_dotenv
 from src.config import validate_spotify_client_id
 from src.constants import DEFAULT_SPOTIFY_REDIRECT_URI
+from src.models import Color
 from src.models import TrackColor
 from src.models import TrackSummary
 from src.spotify.client import SpotifyClient
@@ -47,7 +48,7 @@ def json_dumps(data: Any) -> str:
 
 
 class LightController:
-    def set_rgb(self, rgb: tuple[int, int, int]) -> None:
+    def set_rgb(self, rgb: Color) -> None:
         raise NotImplementedError
 
 
@@ -57,7 +58,7 @@ class HomeAssistantLightController(LightController):
         self.token = env("HOME_ASSISTANT_TOKEN", required=True)
         self.entity_id = env("HOME_ASSISTANT_ENTITY_ID", required=True)
 
-    def set_rgb(self, rgb: tuple[int, int, int]) -> None:
+    def set_rgb(self, rgb: Color) -> None:
         url = f"{self.base_url}/api/services/light/turn_on"
         headers = {
             "Authorization": f"Bearer {self.token}",
@@ -310,7 +311,7 @@ class TuyaCloudLightController(LightController):
         self.min_value_percent = env_float("TUYA_MIN_VALUE_PERCENT", 35.0)
         self.ensure_on_color_mode = env_bool("TUYA_ENSURE_ON_COLOR_MODE", False)
 
-    def set_rgb(self, rgb: tuple[int, int, int]) -> None:
+    def set_rgb(self, rgb: Color) -> None:
         hsv = rgb_to_hsv_command(
             rgb,
             h_max=self.spec.h_max,
@@ -419,7 +420,7 @@ def current_track_color(
 
 def send_or_log_rgb(
     controller: LightController | None,
-    rgb: tuple[int, int, int],
+    rgb: Color,
     dry_run: bool,
 ) -> None:
     if dry_run:
