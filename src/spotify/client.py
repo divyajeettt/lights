@@ -16,25 +16,24 @@ from typing import Any
 import requests
 
 from src.config import ConfigError
-from src.constants import (
+
+from .constants import (
     SPOTIFY_AUTH_URL,
+    SPOTIFY_CALLBACK_POLL_SECONDS,
+    SPOTIFY_CALLBACK_TIMEOUT_SECONDS,
     SPOTIFY_CURRENTLY_PLAYING_URL,
-    SPOTIFY_DEFAULT_CALLBACK_HOST,
     SPOTIFY_LOCAL_REDIRECT_HOSTS,
     SPOTIFY_LOCAL_REDIRECT_SCHEME,
+    SPOTIFY_PKCE_METHOD,
+    SPOTIFY_RESPONSE_TYPE,
     SPOTIFY_SCOPE,
     SPOTIFY_TOKEN_URL,
 )
-from src.enums import (
+from .enums import (
     SpotifyGrantType,
     SpotifyOAuthParam,
-    SpotifyPkceMethod,
-    SpotifyResponseType,
     SpotifyTokenField,
 )
-
-SPOTIFY_CALLBACK_TIMEOUT_SECONDS = 300
-SPOTIFY_CALLBACK_POLL_SECONDS = 1.0
 
 
 class SpotifyRateLimitError(RuntimeError):
@@ -191,17 +190,19 @@ class SpotifyClient:
         query = urllib.parse.urlencode(
             {
                 SpotifyOAuthParam.CLIENT_ID: self.client_id,
-                SpotifyOAuthParam.RESPONSE_TYPE: SpotifyResponseType.CODE,
+                SpotifyOAuthParam.RESPONSE_TYPE: SPOTIFY_RESPONSE_TYPE,
                 SpotifyOAuthParam.REDIRECT_URI: self.redirect_uri,
                 SpotifyOAuthParam.SCOPE: SPOTIFY_SCOPE,
                 SpotifyOAuthParam.STATE: state,
-                SpotifyOAuthParam.CODE_CHALLENGE_METHOD: SpotifyPkceMethod.S256,
+                SpotifyOAuthParam.CODE_CHALLENGE_METHOD: SPOTIFY_PKCE_METHOD,
                 SpotifyOAuthParam.CODE_CHALLENGE: code_challenge,
             }
         )
         auth_url = f"{SPOTIFY_AUTH_URL}?{query}"
 
-        host = parsed.hostname or SPOTIFY_DEFAULT_CALLBACK_HOST
+        host = parsed.hostname
+        if host is None:
+            raise ConfigError("SPOTIFY_REDIRECT_URI must include a hostname")
         port = parsed.port or 80
         server = HTTPServer((host, port), SpotifyCallbackHandler)
         server.auth_code = ""

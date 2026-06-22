@@ -87,14 +87,8 @@ def test_album_palette_from_image_bytes_uses_fallback_when_colorgram_finds_no_co
 
     monkeypatch.setattr(extractor.colorgram, "extract", lambda _image, _colors: [])
 
-    palette, fallback_used = album_palette_from_image_bytes(
-        image_bytes,
-        count=1,
-        fallback_rgb=(255, 102, 0),
-    )
-
-    assert palette == [(255, 102, 0)]
-    assert fallback_used is True
+    with pytest.raises(RuntimeError, match="did not yield enough visible colors"):
+        album_palette_from_image_bytes(image_bytes, count=1)
 
 
 def test_album_palette_from_image_bytes_uses_fixed_fallback_after_palette_attempts(
@@ -114,21 +108,8 @@ def test_album_palette_from_image_bytes_uses_fixed_fallback_after_palette_attemp
         ],
     )
 
-    palette, fallback_used = album_palette_from_image_bytes(
-        image_bytes,
-        count=6,
-        fallback_rgb=(20, 20, 20),
-    )
-
-    assert palette == [
-        (0, 170, 255),
-        (255, 102, 0),
-        (51, 204, 102),
-        (128, 64, 255),
-        (255, 230, 40),
-        (20, 20, 20),
-    ]
-    assert fallback_used is True
+    with pytest.raises(RuntimeError, match="did not yield enough visible colors"):
+        album_palette_from_image_bytes(image_bytes, count=6)
 
 
 def test_album_palette_from_image_bytes_extracts_at_least_five_fallback_candidates(
@@ -147,7 +128,6 @@ def test_album_palette_from_image_bytes_extracts_at_least_five_fallback_candidat
         image_bytes,
         count=1,
         colors=1,
-        fallback_rgb=(255, 102, 0),
     )
 
     assert requested_counts == [5]
@@ -166,11 +146,7 @@ def test_album_palette_from_image_bytes_strips_transparent_pixels_before_colorgr
 
     monkeypatch.setattr(extractor.colorgram, "extract", extract)
 
-    album_palette_from_image_bytes(
-        image_bytes,
-        count=1,
-        fallback_rgb=(255, 102, 0),
-    )
+    album_palette_from_image_bytes(image_bytes, count=1)
 
     assert colorgram_pixels == [(255, 0, 0), (0, 255, 0)]
 
@@ -179,4 +155,4 @@ def test_album_rgb_from_image_bytes_rejects_transparent_image() -> None:
     image_bytes = make_png_bytes((20, 20, 20, 0))
 
     with pytest.raises(RuntimeError, match="no visible pixels"):
-        album_rgb_from_image_bytes(image_bytes, fallback_rgb=(255, 102, 0))
+        album_rgb_from_image_bytes(image_bytes)

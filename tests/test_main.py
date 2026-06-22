@@ -19,43 +19,43 @@ def run_cli(monkeypatch, tmp_path, args: list[str]) -> int:
 
 
 def test_main_preserves_config_error_exit(monkeypatch, tmp_path, capsys) -> None:
-    monkeypatch.setenv("POLL_SECONDS", "not-a-number")
+    monkeypatch.setenv("TUYA_DEVICE_ID", "device-1")
+
+    def fail_build_spotify():
+        raise ConfigError("missing spotify client")
+
+    monkeypatch.setattr(cli, "build_spotify", fail_build_spotify)
 
     result = run_cli(monkeypatch, tmp_path, [])
 
     captured = capsys.readouterr()
     assert result == 2
-    assert "Configuration error: POLL_SECONDS must be a number" in captured.err
+    assert "Configuration error: missing spotify client" in captured.err
 
 
-def test_main_rejects_non_positive_poll_before_watcher(
-    monkeypatch,
-    tmp_path,
-    capsys,
-) -> None:
-    calls: list[str] = []
+def test_main_uses_fixed_poll_seconds(monkeypatch, tmp_path) -> None:
+    calls = {}
 
-    monkeypatch.setenv("POLL_SECONDS", "0")
-    monkeypatch.setattr(
-        cli,
-        "build_spotify",
-        lambda: calls.append("spotify"),
-    )
-    monkeypatch.setattr(cli, "run_watcher", lambda **_kwargs: calls.append("watcher"))
+    monkeypatch.setenv("TUYA_DEVICE_ID", "device-1")
+    monkeypatch.setattr(cli, "build_spotify", lambda: "spotify")
+    monkeypatch.setattr(cli, "build_light_controller", lambda: StubController())
+
+    def run_watcher(**kwargs):
+        calls.update(kwargs)
+        return 0
+
+    monkeypatch.setattr(cli, "run_watcher", run_watcher)
 
     result = run_cli(monkeypatch, tmp_path, [])
 
-    captured = capsys.readouterr()
-    assert result == 1
-    assert "Error: POLL_SECONDS must be greater than 0" in captured.err
-    assert calls == []
+    assert result == 0
+    assert calls["poll_seconds"] == cli.POLL_SECONDS
 
 
 def test_main_default_run_calls_watcher(monkeypatch, tmp_path) -> None:
     controller = StubController()
     calls = {}
 
-    monkeypatch.delenv("LIGHT_COLOR_MODE", raising=False)
     monkeypatch.setenv("TUYA_DEVICE_ID", "device-1")
     monkeypatch.setattr(cli, "build_spotify", lambda: "spotify")
     monkeypatch.setattr(cli, "build_light_controller", lambda: controller)
@@ -72,7 +72,7 @@ def test_main_default_run_calls_watcher(monkeypatch, tmp_path) -> None:
     assert calls == {
         "spotify": "spotify",
         "controller": controller,
-        "poll_seconds": 1.0,
+        "poll_seconds": cli.POLL_SECONDS,
         "dry_run_once": False,
         "light_count": 1,
         "color_mode": cli.LightColorMode.ALBUM_PALETTE,
@@ -85,7 +85,6 @@ def test_main_dry_run_once_calls_watcher_without_controller(
 ) -> None:
     calls = {}
 
-    monkeypatch.delenv("LIGHT_COLOR_MODE", raising=False)
     monkeypatch.setattr(cli, "build_spotify", lambda: "spotify")
 
     def fail_build_light_controller():
@@ -104,7 +103,7 @@ def test_main_dry_run_once_calls_watcher_without_controller(
     assert calls == {
         "spotify": "spotify",
         "controller": None,
-        "poll_seconds": 1.0,
+        "poll_seconds": cli.POLL_SECONDS,
         "dry_run_once": True,
         "light_count": 1,
         "color_mode": cli.LightColorMode.ALBUM_PALETTE,
@@ -128,10 +127,8 @@ def test_main_set_rgb_uses_light_controller_without_spotify(
     assert controller.calls == [(0, 170, 255)]
 
 
-def test_main_set_rgb_does_not_require_poll_seconds(monkeypatch, tmp_path) -> None:
+def test_main_set_rgb_only_uses_light_controller(monkeypatch, tmp_path) -> None:
     controller = StubController()
-
-    monkeypatch.setenv("POLL_SECONDS", "not-a-number")
     monkeypatch.setattr(cli, "build_light_controller", lambda: controller)
 
     result = run_cli(monkeypatch, tmp_path, ["--set-rgb", "#00aaff"])

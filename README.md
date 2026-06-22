@@ -56,8 +56,6 @@ It needs only the app's public Client ID, not the Client Secret.
 
    ```env
    SPOTIFY_CLIENT_ID=0123456789abcdef0123456789abcdef
-   SPOTIFY_REDIRECT_URI=http://127.0.0.1:8888/callback
-   POLL_SECONDS=1
    ```
 
 Do not put your Spotify username, email, password, or Client Secret in
@@ -83,19 +81,15 @@ Smart Life/Tuya-compatible app accounts.
 
    ```text
    Development Method: Smart Home
-   Data Center: the data center matching your Smart Life account region
+   Data Center: India Data Center
    ```
 
-   To confirm the app account region in Smart Life, open:
+   The app currently uses the India Tuya Cloud endpoint as an application
+   constant. Your Smart Life account and Tuya Cloud project must use the same
+   region.
 
    ```text
    Me -> Settings -> Account and Security -> Region
-   ```
-
-   For an India Smart Life account, use `India Data Center` and:
-
-   ```env
-   TUYA_ENDPOINT=https://openapi.tuyain.com
    ```
 
 7. Authorize these API services when prompted:
@@ -145,25 +139,14 @@ Smart Life/Tuya-compatible app accounts.
 Your Tuya config should look like:
 
 ```env
-TUYA_ENDPOINT=https://openapi.tuyain.com
 TUYA_ACCESS_ID=<cloud project access id>
 TUYA_ACCESS_SECRET=<cloud project access secret>
 TUYA_DEVICE_IDS=<first bulb device id>,<second bulb device id>
 TUYA_DEVICE_LABELS=desk bulb,floor bulb
-TUYA_ENSURE_ON_COLOR_MODE=false
 ```
 
-Common Tuya endpoints:
-
-```text
-China Data Center: https://openapi.tuyacn.com
-Western America Data Center: https://openapi.tuyaus.com
-Eastern America Data Center: https://openapi-ueaz.tuyaus.com
-Central Europe Data Center: https://openapi.tuyaeu.com
-Western Europe Data Center: https://openapi-weaz.tuyaeu.com
-India Data Center: https://openapi.tuyain.com
-Singapore Data Center: https://openapi-sg.iotbing.com
-```
+The Tuya endpoint is not an environment variable. It is fixed in code to the
+India Tuya Cloud endpoint.
 
 ### 4. Tuya Cloud configuration
 
@@ -200,66 +183,26 @@ Run continuously:
 python main.py
 ```
 
-By default, Spotify is polled every 1 second. If Spotify returns a rate-limit
-response, the script sleeps for Spotify's `Retry-After` value before polling
-again. Tune the normal polling interval in `.env`:
+Spotify is polled on a fixed internal interval.
 
-```env
-POLL_SECONDS=1
-```
-
-The polling interval must be greater than `0`.
-
-By default, configured bulbs receive different colors from the same album art:
-
-```env
-LIGHT_COLOR_MODE=album_palette
-```
-
-To send the same dominant album-art color to every configured bulb, set:
-
-```env
-LIGHT_COLOR_MODE=same
-```
+Configured bulbs receive different colors from the same album art. This mode is
+an application constant, not an environment variable.
 
 If `TUYA_DEVICE_IDS` is set, every listed Tuya device is updated. If it is not
 set, the script falls back to the single-bulb `TUYA_DEVICE_ID` setting.
 Set `TUYA_DEVICE_LABELS` to control the names shown in logs. The label count
 must match the number of configured Tuya devices.
 
-The script uses `colorgram.py` to extract an ordered palette from album art. In
-`same` mode every bulb gets the first palette color. In `album_palette` mode,
-bulbs receive colors by palette order. If no palette color is found, it uses a
-fallback color only after trying the first five prominent palette colors. Tune
-that final fallback in `.env`:
-
-```env
-ALBUM_COLOR_FALLBACK=#ff6600
-```
+The script uses `colorgram.py` to extract an ordered palette from album art.
+Bulbs receive colors by palette order. If no visible palette color is found, the
+app raises an error instead of inventing a fallback color.
 
 For Tuya bulbs, each selected RGB color is converted to HSV. Hue and saturation
 come from the RGB color, while brightness uses the color's perceived luminance
-so darker palette colors stay dimmer. `TUYA_BRIGHTNESS_SCALE` dims or boosts all
-computed brightness values, and `TUYA_MIN_VALUE_PERCENT` still applies as a
-lower brightness floor:
+so darker palette colors stay dimmer. The brightness scale and minimum value
+floor are fixed application constants now.
 
-```env
-TUYA_BRIGHTNESS_SCALE=0.25
-TUYA_MIN_VALUE_PERCENT=1
-```
-
-If `TUYA_BRIGHTNESS_SCALE` is omitted, the app uses `0.25`.
-
-This bulb advertises Tuya `control_data` with a native `gradient` mode, but in
-testing it accepted that command without changing color. The script therefore
-uses the reliable direct color command, `colour_data_v2`, for each song change.
-By default it sends only the color command, which is faster when the bulb is
-already on and already in color mode. If color changes stop applying after you
-manually switch the bulb to another mode, set this in `.env`:
-
-```env
-TUYA_ENSURE_ON_COLOR_MODE=true
-```
+The script sends the direct color command inferred from the bulb specification.
 
 Set a manual color to test bulb control:
 
@@ -280,10 +223,8 @@ The app starts in `main.py`.
 
 1. It builds the CLI parser and parses flags such as `--dry-run-once` and
    `--set-rgb`.
-2. It loads `.env` values with `load_dotenv()` and resolves environment-backed
-   defaults such as `POLL_SECONDS`.
-3. It validates runtime options, including requiring `POLL_SECONDS` to be
-   greater than `0`.
+2. It loads `.env` values with `load_dotenv()`.
+3. It validates CLI flag combinations and supported input formats.
 4. For direct actions:
    - `--set-rgb` sends a manual RGB color to the Tuya light controller.
 5. For normal watcher mode:
@@ -337,8 +278,7 @@ This keeps config parsing out of the feature modules.
 
 #### `src/constants.py`
 
-Shared string and numeric defaults used across the project, such as Spotify
-URLs, default polling interval, and default fallback color.
+Shared constants used by configuration helpers.
 
 #### `src/models.py`
 
@@ -375,7 +315,9 @@ Color extraction and conversion logic.
 - `src/color/extractor.py`
   - fetch image bytes from album-art URLs
   - extract ordered artwork palettes with `colorgram.py`
-  - apply fallback color when needed
+  - raise when album art does not yield enough visible colors
+- `src/color/constants.py`
+  - color math and palette extraction constants
 
 This package is intentionally pure or close to pure except for image download.
 
@@ -392,6 +334,10 @@ Spotify integration.
   - Spotify Web API calls
   - shared JSON request helper
   - rate-limit parsing
+- `src/spotify/constants.py`
+  - Spotify API URLs, OAuth constants, redirect/cache paths, and callback timing
+- `src/spotify/enums.py`
+  - Spotify request, token, grant, and env string vocabularies
 
 This package is the only place that should know the details of Spotify auth
 and API request structure.
@@ -408,6 +354,11 @@ Light control abstraction and Tuya implementation.
   - Tuya signing and API client
   - Tuya device specification inference
   - Tuya light controller implementation
+- `src/light/constants.py`
+  - Tuya endpoint, API paths, color-code candidates, and HSV fallback values
+- `src/light/enums.py`
+  - Tuya request, response, command, spec, token, header, and env string vocabularies
+
 The runner depends only on the `LightController` interface, so light-control
 behavior stays isolated inside this package.
 
@@ -424,8 +375,7 @@ The refactor separates the codebase into layers with clear responsibilities:
 - `spotify/` handles Spotify communication.
 - `color/` handles album-art color extraction and color math.
 - `light/` handles Tuya Cloud output.
-- `config.py`, `constants.py`, and `models.py` hold shared cross-cutting
-  pieces.
+- `config.py`, `constants.py`, and `models.py` hold shared cross-cutting pieces.
 
 That split makes future changes more local. For example:
 
@@ -458,15 +408,14 @@ Run the test suite from the project virtual environment:
 Current test coverage is offline-only and does not require Spotify or Tuya
 credentials. It covers:
 
-- color parsing, filtering, HSV conversion, and album-art fallback behavior
+- color parsing, filtering, HSV conversion, and visible-color extraction behavior
 - config parsing and Spotify client ID validation
 - Spotify helper behavior such as retry parsing, token persistence, request
   error handling, refresh-on-401 flow, rate-limit handling, private token-cache
   writes, and OAuth callback timeout/cleanup
 - runner dry-run-once behavior, invalid playback payloads, and unchanged-track
   skipping
-- CLI behavior for manual RGB commands, malformed user input, and invalid
-  polling intervals
+- CLI behavior for manual RGB commands and malformed user input
 - Tuya light controller construction
 - Tuya spec inference and Tuya command payload generation
 

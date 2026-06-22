@@ -5,13 +5,19 @@ from pathlib import Path
 import pytest
 
 import src.spotify.client as spotify_client_module
-from src.constants import DEFAULT_SPOTIFY_REDIRECT_URI
-from src.enums import SpotifyEnvVar, SpotifyTokenField
-from src.spotify import SpotifyClient, build_spotify, parse_retry_after, request_json
+from src.spotify import (
+    SPOTIFY_CACHE_FILE,
+    SPOTIFY_CALLBACK_POLL_SECONDS,
+    SPOTIFY_REDIRECT_URI,
+    SpotifyClient,
+    SpotifyTokenField,
+    build_spotify,
+    parse_retry_after,
+    request_json,
+)
 
 TEST_SPOTIFY_CLIENT_ID = "a" * 32
 TEST_SPOTIFY_REDIRECT_URI = "http://127.0.0.1:9999/callback"
-TEST_SPOTIFY_CACHE_FILE = ".cache/test-token.json"
 TEST_REQUEST_URL = "https://example.com"
 
 
@@ -27,7 +33,7 @@ def test_spotify_client_save_token_preserves_refresh_token(tmp_path) -> None:
     cache_file = tmp_path / "spotify_token.json"
     client = SpotifyClient(
         client_id=TEST_SPOTIFY_CLIENT_ID,
-        redirect_uri=DEFAULT_SPOTIFY_REDIRECT_URI,
+        redirect_uri=SPOTIFY_REDIRECT_URI,
         cache_file=cache_file,
     )
     client.token = {SpotifyTokenField.REFRESH_TOKEN: "refresh-123"}
@@ -47,7 +53,7 @@ def test_spotify_client_save_token_writes_private_cache_file(tmp_path) -> None:
     cache_file = tmp_path / "spotify_token.json"
     client = SpotifyClient(
         client_id=TEST_SPOTIFY_CLIENT_ID,
-        redirect_uri=DEFAULT_SPOTIFY_REDIRECT_URI,
+        redirect_uri=SPOTIFY_REDIRECT_URI,
         cache_file=cache_file,
     )
 
@@ -73,7 +79,7 @@ def test_spotify_client_save_token_replace_failure_keeps_existing_cache(
     cache_file.write_text('{"access_token": "old-token"}\n')
     client = SpotifyClient(
         client_id=TEST_SPOTIFY_CLIENT_ID,
-        redirect_uri=DEFAULT_SPOTIFY_REDIRECT_URI,
+        redirect_uri=SPOTIFY_REDIRECT_URI,
         cache_file=cache_file,
     )
 
@@ -96,18 +102,13 @@ def test_spotify_client_save_token_replace_failure_keeps_existing_cache(
 
 
 def test_build_spotify_uses_env_values(monkeypatch) -> None:
-    monkeypatch.setenv(SpotifyEnvVar.CLIENT_ID, TEST_SPOTIFY_CLIENT_ID)
-    monkeypatch.setenv(
-        SpotifyEnvVar.REDIRECT_URI,
-        TEST_SPOTIFY_REDIRECT_URI,
-    )
-    monkeypatch.setenv(SpotifyEnvVar.CACHE_FILE, TEST_SPOTIFY_CACHE_FILE)
+    monkeypatch.setenv("SPOTIFY_CLIENT_ID", TEST_SPOTIFY_CLIENT_ID)
 
     client = build_spotify()
 
     assert client.client_id == TEST_SPOTIFY_CLIENT_ID
-    assert client.redirect_uri == TEST_SPOTIFY_REDIRECT_URI
-    assert client.cache_file == Path(TEST_SPOTIFY_CACHE_FILE)
+    assert client.redirect_uri == SPOTIFY_REDIRECT_URI
+    assert client.cache_file == Path(SPOTIFY_CACHE_FILE)
 
 
 class StubResponse:
@@ -195,7 +196,7 @@ def test_authorize_closes_callback_server_after_success(monkeypatch, tmp_path) -
     client._authorize()
 
     assert servers[0].closed is True
-    assert servers[0].timeout == spotify_client_module.SPOTIFY_CALLBACK_POLL_SECONDS
+    assert servers[0].timeout == SPOTIFY_CALLBACK_POLL_SECONDS
     assert client.token[SpotifyTokenField.ACCESS_TOKEN] == "access-123"
 
 
@@ -233,7 +234,7 @@ def test_currently_playing_refreshes_after_401(monkeypatch, tmp_path) -> None:
     cache_file = tmp_path / "spotify_token.json"
     client = SpotifyClient(
         client_id=TEST_SPOTIFY_CLIENT_ID,
-        redirect_uri=DEFAULT_SPOTIFY_REDIRECT_URI,
+        redirect_uri=SPOTIFY_REDIRECT_URI,
         cache_file=cache_file,
     )
     client.token = {
@@ -269,7 +270,7 @@ def test_currently_playing_raises_rate_limit(monkeypatch, tmp_path) -> None:
     cache_file = tmp_path / "spotify_token.json"
     client = SpotifyClient(
         client_id=TEST_SPOTIFY_CLIENT_ID,
-        redirect_uri=DEFAULT_SPOTIFY_REDIRECT_URI,
+        redirect_uri=SPOTIFY_REDIRECT_URI,
         cache_file=cache_file,
     )
     client.token = {

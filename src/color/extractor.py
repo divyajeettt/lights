@@ -7,14 +7,9 @@ import colorgram
 import requests
 from PIL import Image
 
-from src.config import env
-from src.constants import DEFAULT_ALBUM_COLOR_FALLBACK
-from src.enums import AlbumColorEnvVar
 from src.models import Color
 
-from .utils import parse_rgb
-
-FALLBACK_PALETTE_ATTEMPTS = 5
+from .constants import FALLBACK_PALETTE_ATTEMPTS
 
 
 def image_pixel_data(image: Image.Image) -> Any:
@@ -51,14 +46,9 @@ def album_palette_from_image_bytes(
     image_bytes: bytes,
     count: int,
     colors: int = 16,
-    fallback_rgb: Color | None = None,
 ) -> tuple[list[Color], bool]:
     if count <= 0:
         raise ValueError("Palette color count must be greater than 0")
-    if fallback_rgb is None:
-        fallback_rgb = parse_rgb(
-            env(AlbumColorEnvVar.FALLBACK, DEFAULT_ALBUM_COLOR_FALLBACK)
-        )
 
     extraction_count = max(colors, count, FALLBACK_PALETTE_ATTEMPTS)
     palette = _colorgram_palette_from_image_bytes(image_bytes, colors=extraction_count)
@@ -68,21 +58,18 @@ def album_palette_from_image_bytes(
     if len(selected) < count:
         selected.extend(palette[count:FALLBACK_PALETTE_ATTEMPTS])
     if len(selected) < count:
-        selected.extend([fallback_rgb] * (count - len(selected)))
-        fallback_used = True
+        raise RuntimeError("Album art image did not yield enough visible colors")
     return selected[:count], fallback_used
 
 
 def album_rgb_from_image_bytes(
     image_bytes: bytes,
     colors: int = 16,
-    fallback_rgb: Color | None = None,
 ) -> tuple[Color, bool]:
     palette, fallback_used = album_palette_from_image_bytes(
         image_bytes,
         count=1,
         colors=colors,
-        fallback_rgb=fallback_rgb,
     )
     return palette[0], fallback_used
 

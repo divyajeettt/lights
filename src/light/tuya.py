@@ -12,11 +12,11 @@ from typing import Any
 import requests
 
 from src.color import rgb_to_hsv_command
-from src.config import ConfigError, env, env_bool, env_float
-from src.constants import (
-    DEFAULT_TUYA_BRIGHTNESS_SCALE,
-    DEFAULT_TUYA_ENDPOINT,
-    DEFAULT_TUYA_MIN_VALUE_PERCENT,
+from src.config import ConfigError, env
+from src.models import Color
+
+from .base import SingleLightController
+from .constants import (
     TUYA_COLOR_CODE_CANDIDATES,
     TUYA_COLOR_CODE_V2_SUFFIX,
     TUYA_DEFAULT_HUE_MAX,
@@ -24,13 +24,11 @@ from src.constants import (
     TUYA_DEVICE_COMMANDS_PATH,
     TUYA_DEVICE_SPECIFICATIONS_PATH,
     TUYA_DEVICE_STATUS_PATH,
-    TUYA_SWITCH_CODE_CANDIDATES,
+    TUYA_ENDPOINT,
     TUYA_TOKEN_PATH,
     TUYA_V2_SATURATION_VALUE_MAX,
-    TUYA_WORK_MODE_CODE_CANDIDATES,
 )
-from src.enums import (
-    TuyaColorValueFormat,
+from .enums import (
     TuyaCommandField,
     TuyaEnvVar,
     TuyaHeader,
@@ -40,11 +38,7 @@ from src.enums import (
     TuyaSignMethod,
     TuyaSpecField,
     TuyaTokenField,
-    TuyaWorkMode,
 )
-from src.models import Color
-
-from .base import SingleLightController
 
 
 def now_ms() -> int:
@@ -57,7 +51,7 @@ def json_dumps(data: Any) -> str:
 
 class TuyaCloudClient:
     def __init__(self, device_id: str | None = None) -> None:
-        self.endpoint = env(TuyaEnvVar.ENDPOINT, DEFAULT_TUYA_ENDPOINT).rstrip("/")
+        self.endpoint = TUYA_ENDPOINT.rstrip("/")
         self.access_id = env(TuyaEnvVar.ACCESS_ID, required=True)
         self.access_secret = env(TuyaEnvVar.ACCESS_SECRET, required=True)
         self.device_id = device_id or env(TuyaEnvVar.DEVICE_ID, required=True)
@@ -181,14 +175,10 @@ class TuyaCloudClient:
 
 @dataclass
 class TuyaLightSpec:
-    switch_code: str | None
-    work_mode_code: str | None
-    work_mode_value: str | None
     color_code: str
     h_max: int
     s_max: int
     v_max: int
-    color_value_format: str
 
 
 def _parse_values(raw: Any) -> dict[str, Any]:
@@ -200,12 +190,6 @@ def _parse_values(raw: Any) -> dict[str, Any]:
         return json.loads(raw)
     except ValueError:
         return {}
-
-
-def _first_auto(value: str, empty: str | None = None) -> str | None:
-    if not value or value.lower() == TuyaColorValueFormat.AUTO:
-        return empty
-    return value
 
 
 def _value_max(values: dict[str, Any], key: str, default: int) -> int:
@@ -223,52 +207,10 @@ def infer_tuya_light_spec(specification: dict[str, Any]) -> TuyaLightSpec:
         if item.get(TuyaSpecField.CODE)
     }
 
-    switch_override = _first_auto(
-        env(TuyaEnvVar.SWITCH_CODE, TuyaColorValueFormat.AUTO)
-    )
-    mode_override = _first_auto(
-        env(TuyaEnvVar.WORK_MODE_CODE, TuyaColorValueFormat.AUTO)
-    )
-    color_override = _first_auto(env(TuyaEnvVar.COLOR_CODE, TuyaColorValueFormat.AUTO))
-    format_override = _first_auto(
-        env(TuyaEnvVar.COLOR_VALUE_FORMAT, TuyaColorValueFormat.AUTO)
-    )
-
-    switch_code = switch_override
-    if not switch_code:
-        for candidate in TUYA_SWITCH_CODE_CANDIDATES:
-            if candidate in by_code:
-                switch_code = candidate
-                break
-
-    work_mode_code = mode_override
-    work_mode_value = env(TuyaEnvVar.WORK_MODE_VALUE, "")
-    if not work_mode_code:
-        for candidate in TUYA_WORK_MODE_CODE_CANDIDATES:
-            if candidate in by_code:
-                work_mode_code = candidate
-                break
-    if work_mode_code and not work_mode_value:
-        values = _parse_values(
-            by_code.get(work_mode_code, {}).get(TuyaSpecField.VALUES)
-        )
-        mode_range = values.get(TuyaSpecField.RANGE, [])
-        if TuyaWorkMode.COLOUR in mode_range:
-            work_mode_value = TuyaWorkMode.COLOUR
-        elif TuyaWorkMode.COLOR in mode_range:
-            work_mode_value = TuyaWorkMode.COLOR
-        else:
-            work_mode_value = TuyaWorkMode.COLOUR
-
-    color_code = color_override
-    if not color_code:
-        for candidate in TUYA_COLOR_CODE_CANDIDATES:
-            if candidate in by_code:
-                color_code = candidate
-                break
+    color_code = next((c for c in TUYA_COLOR_CODE_CANDIDATES if c in by_code), None)
     if not color_code:
         raise ConfigError(
-            "Could not infer Tuya color command. Set TUYA_COLOR_CODE in .env."
+            "Could not infer Tuya color command from the device specification."
         )
 
     values = _parse_values(by_code.get(color_code, {}).get(TuyaSpecField.VALUES))
@@ -292,25 +234,11 @@ def infer_tuya_light_spec(specification: dict[str, Any]) -> TuyaLightSpec:
     else:
         s_max = v_max = TUYA_DEFAULT_SATURATION_VALUE_MAX
 
-    raw_value_format = format_override or TuyaColorValueFormat.OBJECT
-    try:
-        value_format = TuyaColorValueFormat(raw_value_format)
-    except ValueError as exc:
-        raise ConfigError(
-            "TUYA_COLOR_VALUE_FORMAT must be auto, object, or string"
-        ) from exc
-    if value_format == TuyaColorValueFormat.AUTO:
-        value_format = TuyaColorValueFormat.OBJECT
-
     return TuyaLightSpec(
-        switch_code=switch_code,
-        work_mode_code=work_mode_code,
-        work_mode_value=work_mode_value or None,
         color_code=color_code,
         h_max=h_max,
         s_max=s_max,
         v_max=v_max,
-        color_value_format=value_format,
     )
 
 
@@ -319,17 +247,6 @@ class TuyaCloudLightController(SingleLightController):
         self.client = TuyaCloudClient(device_id=device_id)
         self.label = label or self.client.device_id
         self.spec = infer_tuya_light_spec(self.client.device_specification())
-        self.min_value_percent = env_float(
-            TuyaEnvVar.MIN_VALUE_PERCENT,
-            DEFAULT_TUYA_MIN_VALUE_PERCENT,
-        )
-        self.brightness_scale = env_float(
-            TuyaEnvVar.BRIGHTNESS_SCALE,
-            DEFAULT_TUYA_BRIGHTNESS_SCALE,
-        )
-        if self.brightness_scale < 0:
-            raise ValueError("TUYA_BRIGHTNESS_SCALE must be greater than or equal to 0")
-        self.ensure_on_color_mode = env_bool(TuyaEnvVar.ENSURE_ON_COLOR_MODE, False)
 
     @property
     def light_labels(self) -> tuple[str, ...]:
@@ -341,37 +258,17 @@ class TuyaCloudLightController(SingleLightController):
             h_max=self.spec.h_max,
             s_max=self.spec.s_max,
             v_max=self.spec.v_max,
-            min_value_percent=self.min_value_percent,
-            brightness_scale=self.brightness_scale,
         )
         color_value: dict[str, int] | str = {
             TuyaHsvField.HUE: hsv.h,
             TuyaHsvField.SATURATION: hsv.s,
             TuyaHsvField.VALUE: hsv.v,
         }
-        if self.spec.color_value_format == TuyaColorValueFormat.STRING:
-            color_value = json_dumps(color_value)
-
-        commands: list[dict[str, Any]] = []
-        if self.ensure_on_color_mode:
-            if self.spec.switch_code:
-                commands.append(
-                    {
-                        TuyaCommandField.CODE: self.spec.switch_code,
-                        TuyaCommandField.VALUE: True,
-                    }
-                )
-            if self.spec.work_mode_code and self.spec.work_mode_value:
-                commands.append(
-                    {
-                        TuyaCommandField.CODE: self.spec.work_mode_code,
-                        TuyaCommandField.VALUE: self.spec.work_mode_value,
-                    }
-                )
-        commands.append(
-            {
-                TuyaCommandField.CODE: self.spec.color_code,
-                TuyaCommandField.VALUE: color_value,
-            }
+        self.client.send_commands(
+            [
+                {
+                    TuyaCommandField.CODE: self.spec.color_code,
+                    TuyaCommandField.VALUE: color_value,
+                }
+            ]
         )
-        self.client.send_commands(commands)
