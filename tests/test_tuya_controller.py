@@ -45,15 +45,15 @@ def test_tuya_controller_sends_only_color_command_by_default(monkeypatch) -> Non
             TuyaCommandField.VALUE: {
                 TuyaHsvField.HUE: 200,
                 TuyaHsvField.SATURATION: 1000,
-                TuyaHsvField.VALUE: 137,
+                TuyaHsvField.VALUE: 401,
             },
         }
     ]
 
 
-def test_tuya_controller_uses_constant_brightness_settings(monkeypatch) -> None:
+def test_tuya_controller_uses_black_distance_brightness(monkeypatch) -> None:
     controller, client = make_controller(monkeypatch)
 
     controller.set_rgb((0, 170, 255))
 
-    assert client.commands[0][TuyaCommandField.VALUE][TuyaHsvField.VALUE] == 137
+    assert client.commands[0][TuyaCommandField.VALUE][TuyaHsvField.VALUE] == 401

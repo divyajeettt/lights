@@ -1,16 +1,8 @@
-from src.color import is_usable_album_color, parse_rgb, rgb_to_hsv_command
+from src.color import parse_rgb, rgb_to_hsv_command
 
 
 def test_parse_rgb_parses_hex_string() -> None:
     assert parse_rgb("#00aaff") == (0, 170, 255)
-
-
-def test_is_usable_album_color_rejects_dark_gray() -> None:
-    assert not is_usable_album_color(
-        (20, 20, 20),
-        min_luminance=0.08,
-        min_saturation=0.12,
-    )
 
 
 def test_rgb_to_hsv_command_applies_min_value_floor() -> None:
@@ -18,26 +10,26 @@ def test_rgb_to_hsv_command_applies_min_value_floor() -> None:
     assert hsv.v == 3
 
 
-def test_rgb_to_hsv_command_uses_relative_luminance_for_value() -> None:
-    blue = rgb_to_hsv_command(
-        (0, 0, 255),
+def test_rgb_to_hsv_command_scales_value_by_black_distance_gamma() -> None:
+    dark = rgb_to_hsv_command(
+        (0x0F, 0x0B, 0x27),
         h_max=360,
         s_max=1000,
         v_max=1000,
     )
-    red = rgb_to_hsv_command(
-        (255, 0, 0),
+    bright = rgb_to_hsv_command(
+        (0xBF, 0x9C, 0x83),
         h_max=360,
         s_max=1000,
         v_max=1000,
     )
 
-    assert blue.v == 18
-    assert red.v == 53
-    assert blue.v < red.v
+    assert dark.v == 10
+    assert bright.v == 318
+    assert dark.v < bright.v
 
 
-def test_rgb_to_hsv_command_applies_brightness_scale_constant() -> None:
+def test_rgb_to_hsv_command_allows_white_to_reach_full_value() -> None:
     hsv = rgb_to_hsv_command(
         (255, 255, 255),
         h_max=360,
@@ -45,7 +37,7 @@ def test_rgb_to_hsv_command_applies_brightness_scale_constant() -> None:
         v_max=1000,
     )
 
-    assert hsv.v == 250
+    assert hsv.v == 1000
 
 
 def test_rgb_to_hsv_command_preserves_grayscale_saturation() -> None:
