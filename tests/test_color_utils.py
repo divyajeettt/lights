@@ -14,51 +14,40 @@ def test_is_usable_album_color_rejects_dark_gray() -> None:
 
 
 def test_rgb_to_hsv_command_applies_min_value_floor() -> None:
-    hsv = rgb_to_hsv_command((1, 1, 1), v_max=255, min_value_percent=35.0)
-    assert hsv.v >= 89
+    hsv = rgb_to_hsv_command((1, 1, 1), h_max=360, s_max=255, v_max=255)
+    assert hsv.v == 3
 
 
 def test_rgb_to_hsv_command_uses_relative_luminance_for_value() -> None:
     blue = rgb_to_hsv_command(
         (0, 0, 255),
+        h_max=360,
+        s_max=1000,
         v_max=1000,
-        min_value_percent=0.0,
-        brightness_scale=1.0,
     )
     red = rgb_to_hsv_command(
         (255, 0, 0),
+        h_max=360,
+        s_max=1000,
         v_max=1000,
-        min_value_percent=0.0,
-        brightness_scale=1.0,
     )
 
-    assert blue.v == 72
-    assert red.v == 213
+    assert blue.v == 18
+    assert red.v == 53
     assert blue.v < red.v
 
 
-def test_rgb_to_hsv_command_applies_brightness_scale() -> None:
-    hsv = rgb_to_hsv_command(
-        (255, 0, 0),
-        v_max=1000,
-        min_value_percent=0.0,
-        brightness_scale=0.5,
-    )
-
-    assert hsv.v == 106
-
-
-def test_rgb_to_hsv_command_caps_scaled_value_at_max() -> None:
+def test_rgb_to_hsv_command_applies_brightness_scale_constant() -> None:
     hsv = rgb_to_hsv_command(
         (255, 255, 255),
+        h_max=360,
+        s_max=1000,
         v_max=1000,
-        min_value_percent=0.0,
-        brightness_scale=2.0,
     )
 
-    assert hsv.v == 1000
+    assert hsv.v == 250
 
 
 def test_rgb_to_hsv_command_preserves_grayscale_saturation() -> None:
-    hsv = rgb_to_hsv_command((128, 128, 128))
+    hsv = rgb_to_hsv_command((128, 128, 128), h_max=360, s_max=255, v_max=255)
     assert hsv.s == 0
