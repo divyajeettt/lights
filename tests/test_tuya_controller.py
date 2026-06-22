@@ -1,8 +1,10 @@
-import pytest
-
 import src.light.tuya as tuya_module
-from src.enums import TuyaEnvVar
-from src.light import TuyaCloudLightController, TuyaLightSpec
+from src.light import (
+    TuyaCloudLightController,
+    TuyaCommandField,
+    TuyaHsvField,
+    TuyaLightSpec,
+)
 
 
 class StubTuyaClient:
@@ -19,120 +21,39 @@ class StubTuyaClient:
 
 def make_controller(
     monkeypatch,
-    *,
-    ensure_on_color_mode: bool,
-    brightness_scale: str = "1",
-    color_value_format: str = "object",
 ) -> tuple[TuyaCloudLightController, StubTuyaClient]:
     client = StubTuyaClient()
     spec = TuyaLightSpec(
-        switch_code="switch_led",
-        work_mode_code="work_mode",
-        work_mode_value="colour",
         color_code="colour_data_v2",
         h_max=360,
         s_max=1000,
         v_max=1000,
-        color_value_format=color_value_format,
     )
-    monkeypatch.setattr(
-        tuya_module,
-        "TuyaCloudClient",
-        lambda device_id=None: client,
-    )
+    monkeypatch.setattr(tuya_module, "TuyaCloudClient", lambda device_id=None: client)
     monkeypatch.setattr(tuya_module, "infer_tuya_light_spec", lambda _spec: spec)
-    monkeypatch.setenv(
-        TuyaEnvVar.ENSURE_ON_COLOR_MODE,
-        "true" if ensure_on_color_mode else "false",
-    )
-    monkeypatch.setenv(TuyaEnvVar.MIN_VALUE_PERCENT, "35")
-    monkeypatch.setenv(TuyaEnvVar.BRIGHTNESS_SCALE, brightness_scale)
     return TuyaCloudLightController(), client
 
 
-def test_tuya_controller_sends_only_color_command_by_default(
-    monkeypatch,
-) -> None:
-    controller, client = make_controller(
-        monkeypatch,
-        ensure_on_color_mode=False,
-    )
+def test_tuya_controller_sends_only_color_command_by_default(monkeypatch) -> None:
+    controller, client = make_controller(monkeypatch)
 
     controller.set_rgb((0, 170, 255))
 
     assert client.commands == [
         {
-            "code": "colour_data_v2",
-            "value": {
-                "h": 200,
-                "s": 1000,
-                "v": 549,
+            TuyaCommandField.CODE: "colour_data_v2",
+            TuyaCommandField.VALUE: {
+                TuyaHsvField.HUE: 200,
+                TuyaHsvField.SATURATION: 1000,
+                TuyaHsvField.VALUE: 137,
             },
         }
     ]
 
 
-def test_tuya_controller_can_include_mode_commands(monkeypatch) -> None:
-    controller, client = make_controller(
-        monkeypatch,
-        ensure_on_color_mode=True,
-    )
+def test_tuya_controller_uses_constant_brightness_settings(monkeypatch) -> None:
+    controller, client = make_controller(monkeypatch)
 
     controller.set_rgb((0, 170, 255))
 
-    assert client.commands[0] == {
-        "code": "switch_led",
-        "value": True,
-    }
-    assert client.commands[1] == {
-        "code": "work_mode",
-        "value": "colour",
-    }
-    assert client.commands[2]["code"] == "colour_data_v2"
-
-
-def test_tuya_controller_applies_brightness_scale(monkeypatch) -> None:
-    controller, client = make_controller(
-        monkeypatch,
-        ensure_on_color_mode=False,
-        brightness_scale="0.5",
-    )
-
-    controller.set_rgb((0, 170, 255))
-
-    assert client.commands == [
-        {
-            "code": "colour_data_v2",
-            "value": {
-                "h": 200,
-                "s": 1000,
-                "v": 350,
-            },
-        }
-    ]
-
-
-def test_tuya_controller_can_send_string_color_payload(monkeypatch) -> None:
-    controller, client = make_controller(
-        monkeypatch,
-        ensure_on_color_mode=False,
-        color_value_format="string",
-    )
-
-    controller.set_rgb((0, 170, 255))
-
-    assert client.commands == [
-        {
-            "code": "colour_data_v2",
-            "value": '{"h":200,"s":1000,"v":549}',
-        }
-    ]
-
-
-def test_tuya_controller_rejects_negative_brightness_scale(monkeypatch) -> None:
-    with pytest.raises(ValueError, match="TUYA_BRIGHTNESS_SCALE"):
-        make_controller(
-            monkeypatch,
-            ensure_on_color_mode=False,
-            brightness_scale="-1",
-        )
+    assert client.commands[0][TuyaCommandField.VALUE][TuyaHsvField.VALUE] == 137

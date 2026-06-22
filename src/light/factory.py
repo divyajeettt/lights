@@ -1,9 +1,9 @@
 """Light backend factory."""
 
 from src.config import ConfigError, env, env_csv
-from src.enums import TuyaEnvVar
 
 from .base import GroupLightController, LightController
+from .enums import TuyaEnvVar
 from .tuya import TuyaCloudLightController
 
 

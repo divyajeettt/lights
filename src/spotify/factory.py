@@ -3,19 +3,17 @@
 from pathlib import Path
 
 from src.config import env, validate_spotify_client_id
-from src.constants import DEFAULT_SPOTIFY_CACHE_FILE, DEFAULT_SPOTIFY_REDIRECT_URI
-from src.enums import SpotifyEnvVar
 
 from .client import SpotifyClient
+from .constants import SPOTIFY_CACHE_FILE, SPOTIFY_REDIRECT_URI
+from .enums import SpotifyEnvVar
 
 
 def build_spotify() -> SpotifyClient:
     client_id = env(SpotifyEnvVar.CLIENT_ID, required=True)
     validate_spotify_client_id(client_id)
-    redirect_uri = env(SpotifyEnvVar.REDIRECT_URI, DEFAULT_SPOTIFY_REDIRECT_URI)
-    cache_file = Path(env(SpotifyEnvVar.CACHE_FILE, DEFAULT_SPOTIFY_CACHE_FILE))
     return SpotifyClient(
         client_id,
-        redirect_uri,
-        cache_file,
+        SPOTIFY_REDIRECT_URI,
+        Path(SPOTIFY_CACHE_FILE),
     )

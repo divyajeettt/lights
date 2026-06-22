@@ -3,19 +3,19 @@
 import os
 from pathlib import Path
 
-TRUE_ENV_VALUES = {"1", "true", "yes", "y", "on"}
-FALSE_ENV_VALUES = {"0", "false", "no", "n", "off"}
-SPOTIFY_CLIENT_ID_PLACEHOLDERS = {
-    "your_spotify_client_id",
-    "your_spotify_client_id_here",
-}
+from src.constants import (
+    ENV_PATH,
+    FALSE_ENV_VALUES,
+    SPOTIFY_CLIENT_ID_PLACEHOLDERS,
+    TRUE_ENV_VALUES,
+)
 
 
 class ConfigError(RuntimeError):
     pass
 
 
-def load_dotenv(path: str = ".env") -> None:
+def load_dotenv(path: str = ENV_PATH) -> None:
     env_path = Path(path)
     if not env_path.exists():
         return
