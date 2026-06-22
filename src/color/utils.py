@@ -7,12 +7,9 @@ from src.models import Color
 
 from .constants import (
     BLUE_LUMINANCE_WEIGHT,
-    DEFAULT_BRIGHTNESS_SCALE,
-    DEFAULT_HUE_MAX,
-    DEFAULT_MIN_VALUE_PERCENT,
-    DEFAULT_SATURATION_MAX,
-    DEFAULT_VALUE_MAX,
+    BRIGHTNESS_SCALE,
     GREEN_LUMINANCE_WEIGHT,
+    MIN_VALUE_PERCENT,
     PERCENT_MAX,
     RED_LUMINANCE_WEIGHT,
     RGB_BYTE_MAX,
@@ -84,21 +81,14 @@ def derive_palette_variants(rgb: Color, count: int) -> list[Color]:
     return variants
 
 
-def rgb_to_hsv_command(
-    rgb: Color,
-    h_max: int = DEFAULT_HUE_MAX,
-    s_max: int = DEFAULT_SATURATION_MAX,
-    v_max: int = DEFAULT_VALUE_MAX,
-    min_value_percent: float = DEFAULT_MIN_VALUE_PERCENT,
-    brightness_scale: float = DEFAULT_BRIGHTNESS_SCALE,
-) -> HsvCommand:
+def rgb_to_hsv_command(rgb: Color, *, h_max: int, s_max: int, v_max: int) -> HsvCommand:
     r, g, b = (channel / RGB_BYTE_MAX for channel in rgb)
-    h, s, v = colorsys.rgb_to_hsv(r, g, b)
-    min_v = int(round(v_max * (min_value_percent / PERCENT_MAX)))
+    h, s, _v = colorsys.rgb_to_hsv(r, g, b)
+    min_v = int(round(v_max * (MIN_VALUE_PERCENT / PERCENT_MAX)))
     hue = int(round(h * h_max))
     if hue >= h_max:
         hue = 0
     sat = int(round(s * s_max))
-    scaled_value = relative_luminance(rgb) * brightness_scale
+    scaled_value = relative_luminance(rgb) * BRIGHTNESS_SCALE
     val = min(v_max, max(min_v, int(round(scaled_value * v_max))))
     return HsvCommand(h=hue, s=sat, v=val)
