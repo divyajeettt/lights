@@ -198,9 +198,9 @@ Bulbs receive colors by palette order. If no visible palette color is found, the
 app raises an error instead of inventing a fallback color.
 
 For Tuya bulbs, each selected RGB color is converted to HSV. Hue and saturation
-come from the RGB color, while brightness uses the color's perceived luminance
-so darker palette colors stay dimmer. The brightness scale and minimum value
-floor are fixed application constants now.
+come from the RGB color, while brightness uses a gamma-adjusted RGB distance
+from black so near-black palette colors stay close to the bulb's minimum value.
+The gamma and minimum value floor are fixed application constants.
 
 The script sends the direct color command inferred from the bulb specification.
 
@@ -310,7 +310,6 @@ Color extraction and conversion logic.
 
 - `src/color/utils.py`
   - RGB parsing and formatting
-  - luminance and saturation helpers
   - RGB to HSV command conversion for Tuya
 - `src/color/extractor.py`
   - fetch image bytes from album-art URLs
