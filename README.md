@@ -81,19 +81,15 @@ Smart Life/Tuya-compatible app accounts.
 
    ```text
    Development Method: Smart Home
-   Data Center: the data center matching your Smart Life account region
+   Data Center: India Data Center
    ```
 
-   To confirm the app account region in Smart Life, open:
+   The app currently uses the India Tuya Cloud endpoint as an application
+   constant. Your Smart Life account and Tuya Cloud project must use the same
+   region.
 
    ```text
    Me -> Settings -> Account and Security -> Region
-   ```
-
-   For an India Smart Life account, use `India Data Center` and:
-
-   ```env
-   TUYA_ENDPOINT=https://openapi.tuyain.com
    ```
 
 7. Authorize these API services when prompted:
@@ -149,17 +145,8 @@ TUYA_DEVICE_IDS=<first bulb device id>,<second bulb device id>
 TUYA_DEVICE_LABELS=desk bulb,floor bulb
 ```
 
-Common Tuya endpoints:
-
-```text
-China Data Center: https://openapi.tuyacn.com
-Western America Data Center: https://openapi.tuyaus.com
-Eastern America Data Center: https://openapi-ueaz.tuyaus.com
-Central Europe Data Center: https://openapi.tuyaeu.com
-Western Europe Data Center: https://openapi-weaz.tuyaeu.com
-India Data Center: https://openapi.tuyain.com
-Singapore Data Center: https://openapi-sg.iotbing.com
-```
+The Tuya endpoint is not an environment variable. It is fixed in code to the
+India Tuya Cloud endpoint.
 
 ### 4. Tuya Cloud configuration
 
@@ -198,27 +185,17 @@ python main.py
 
 Spotify is polled on a fixed internal interval.
 
-By default, configured bulbs receive different colors from the same album art:
-
-```env
-LIGHT_COLOR_MODE=album_palette
-```
-
-To send the same dominant album-art color to every configured bulb, set:
-
-```env
-LIGHT_COLOR_MODE=same
-```
+Configured bulbs receive different colors from the same album art. This mode is
+an application constant, not an environment variable.
 
 If `TUYA_DEVICE_IDS` is set, every listed Tuya device is updated. If it is not
 set, the script falls back to the single-bulb `TUYA_DEVICE_ID` setting.
 Set `TUYA_DEVICE_LABELS` to control the names shown in logs. The label count
 must match the number of configured Tuya devices.
 
-The script uses `colorgram.py` to extract an ordered palette from album art. In
-`same` mode every bulb gets the first palette color. In `album_palette` mode,
-bulbs receive colors by palette order. If no visible palette color is found,
-the app raises an error instead of inventing a fallback color.
+The script uses `colorgram.py` to extract an ordered palette from album art.
+Bulbs receive colors by palette order. If no visible palette color is found, the
+app raises an error instead of inventing a fallback color.
 
 For Tuya bulbs, each selected RGB color is converted to HSV. Hue and saturation
 come from the RGB color, while brightness uses the color's perceived luminance
