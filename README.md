@@ -407,7 +407,7 @@ Run the test suite from the project virtual environment:
 Current test coverage is offline-only and does not require Spotify or Tuya
 credentials. It covers:
 
-- color parsing, filtering, HSV conversion, and visible-color extraction behavior
+- color parsing, HSV conversion, and visible-color extraction behavior
 - config parsing and Spotify client ID validation
 - Spotify helper behavior such as retry parsing, token persistence, request
   error handling, refresh-on-401 flow, rate-limit handling, private token-cache

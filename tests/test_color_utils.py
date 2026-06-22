@@ -25,7 +25,7 @@ def test_rgb_to_hsv_command_scales_value_by_black_distance_gamma() -> None:
     )
 
     assert dark.v == 10
-    assert bright.v == 365
+    assert bright.v == 318
     assert dark.v < bright.v
 
 

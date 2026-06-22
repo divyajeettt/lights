@@ -62,7 +62,7 @@ def rgb_to_hsv_command(rgb: Color, *, h_max: int, s_max: int, v_max: int) -> Hsv
     if (hue := round(h * h_max)) >= h_max:
         hue = 0
     sat = round(s * s_max)
-    black_distance = math.dist(rgb, BLACK) / math.sqrt(3)
-    scaled_value = black_distance ** BLACK_DISTANCE_GAMMA
+    black_distance = math.dist((r, g, b), BLACK) / math.sqrt(3)
+    scaled_value = black_distance**BLACK_DISTANCE_GAMMA
     val = min(v_max, max(min_v, round(scaled_value * v_max)))
     return HsvCommand(h=hue, s=sat, v=val)
