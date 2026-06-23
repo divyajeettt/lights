@@ -10,9 +10,11 @@ from .constants import (
     BLACK,
     BLACK_DISTANCE_GAMMA,
     MIN_VALUE_PERCENT,
+    NEAR_BLACK_THRESHOLD,
     PERCENT_MAX,
     RGB_BYTE_MAX,
     RGB_HEX_LENGTH,
+    SATURATION_BOOST_THRESHOLD,
 )
 
 
@@ -55,14 +57,44 @@ def derive_palette_variants(rgb: Color, count: int) -> list[Color]:
     return variants
 
 
+def normalize_rgb(rgb: Color) -> Color:
+    return tuple(channel / RGB_BYTE_MAX for channel in rgb)
+
+
+def black_distance(rgb: Color, *, normalize: bool) -> float:
+    if normalize:
+        rgb = normalize_rgb(rgb)
+    return math.dist(rgb, BLACK) / math.sqrt(3)
+
+
 def rgb_to_hsv_command(rgb: Color, *, h_max: int, s_max: int, v_max: int) -> HsvCommand:
-    r, g, b = (channel / RGB_BYTE_MAX for channel in rgb)
+    r, g, b = normalize_rgb(rgb)
     h, s, _v = colorsys.rgb_to_hsv(r, g, b)
-    min_v = round(v_max * (MIN_VALUE_PERCENT / PERCENT_MAX))
-    if (hue := round(h * h_max)) >= h_max:
+
+    hue = round(h * h_max)
+    if hue >= h_max:
         hue = 0
+
+    # 1. Calculate true distance to black
+    distance_from_black = black_distance((r, g, b), normalize=False)
+
+    # 2. HARD THRESHOLD: If it's practically black, force the value to absolute 0
+    # This overrides min_v so the bulb actually shuts off for black-ish colors.
+    if distance_from_black < NEAR_BLACK_THRESHOLD:
+        return HsvCommand(h=0, s=0, v=0)
+
+    # 3. SATURATION BOOST: If the color is dark, pump up the saturation
+    # to prevent the bulb from falling back to its bright white channel.
+    if distance_from_black < SATURATION_BOOST_THRESHOLD:
+        # Quadratically scale saturation up the darker the color gets
+        s_boost = ((1.0 - distance_from_black) ** 2) * SATURATION_BOOST_THRESHOLD
+        s = min(1.0, s + s_boost)
+
     sat = round(s * s_max)
-    black_distance = math.dist((r, g, b), BLACK) / math.sqrt(3)
-    scaled_value = black_distance**BLACK_DISTANCE_GAMMA
+
+    # 4. Standard value scaling
+    min_v = round(v_max * (MIN_VALUE_PERCENT / PERCENT_MAX))
+    scaled_value = distance_from_black**BLACK_DISTANCE_GAMMA
     val = min(v_max, max(min_v, round(scaled_value * v_max)))
+
     return HsvCommand(h=hue, s=sat, v=val)

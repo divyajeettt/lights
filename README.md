@@ -194,13 +194,18 @@ Set `TUYA_DEVICE_LABELS` to control the names shown in logs. The label count
 must match the number of configured Tuya devices.
 
 The script uses `colorgram.py` to extract an ordered palette from album art.
-Bulbs receive colors by palette order. If no visible palette color is found, the
-app raises an error instead of inventing a fallback color.
+For multiple bulbs, it first tries to skip palette colors that are too close to
+black and uses the first available visible colors in palette order. If there are
+not enough non-black colors, it falls back to the top palette colors. If no
+visible palette color is found, the app raises an error instead of inventing a
+fallback color.
 
 For Tuya bulbs, each selected RGB color is converted to HSV. Hue and saturation
 come from the RGB color, while brightness uses a gamma-adjusted RGB distance
-from black so near-black palette colors stay close to the bulb's minimum value.
-The gamma and minimum value floor are fixed application constants.
+from black. Black-ish colors below the near-black threshold are sent with zero
+brightness, while other dark colors receive a saturation boost before the gamma
+and minimum value floor are applied. These thresholds and scaling values are
+fixed application constants.
 
 The script sends the direct color command inferred from the bulb specification.
 
@@ -310,10 +315,12 @@ Color extraction and conversion logic.
 
 - `src/color/utils.py`
   - RGB parsing and formatting
+  - RGB normalization and distance-from-black helpers
   - RGB to HSV command conversion for Tuya
 - `src/color/extractor.py`
   - fetch image bytes from album-art URLs
   - extract ordered artwork palettes with `colorgram.py`
+  - prefer non-black palette colors when enough are available
   - raise when album art does not yield enough visible colors
 - `src/color/constants.py`
   - color math and palette extraction constants
@@ -407,7 +414,8 @@ Run the test suite from the project virtual environment:
 Current test coverage is offline-only and does not require Spotify or Tuya
 credentials. It covers:
 
-- color parsing, HSV conversion, and visible-color extraction behavior
+- color parsing, RGB normalization, HSV conversion, and visible-color extraction
+  behavior
 - config parsing and Spotify client ID validation
 - Spotify helper behavior such as retry parsing, token persistence, request
   error handling, refresh-on-401 flow, rate-limit handling, private token-cache

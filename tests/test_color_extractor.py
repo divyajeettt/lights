@@ -80,6 +80,50 @@ def test_album_palette_from_image_bytes_uses_colorgram_palette_order(
     assert fallback_used is False
 
 
+def test_album_palette_from_image_bytes_skips_near_black_palette_colors(
+    monkeypatch,
+) -> None:
+    image_bytes = make_png_bytes((0, 170, 255, 255))
+
+    monkeypatch.setattr(
+        extractor.colorgram,
+        "extract",
+        lambda _image, _colors: [
+            StubColor((0, 0, 0)),
+            StubColor((10, 10, 10)),
+            StubColor((0, 170, 255)),
+            StubColor((255, 102, 0)),
+            StubColor((51, 204, 102)),
+        ],
+    )
+
+    palette, fallback_used = album_palette_from_image_bytes(image_bytes, count=2)
+
+    assert palette == [(0, 170, 255), (255, 102, 0)]
+    assert fallback_used is False
+
+
+def test_album_palette_from_image_bytes_returns_top_colors_when_too_few_non_black(
+    monkeypatch,
+) -> None:
+    image_bytes = make_png_bytes((0, 170, 255, 255))
+
+    monkeypatch.setattr(
+        extractor.colorgram,
+        "extract",
+        lambda _image, _colors: [
+            StubColor((0, 0, 0)),
+            StubColor((10, 10, 10)),
+            StubColor((0, 170, 255)),
+        ],
+    )
+
+    palette, fallback_used = album_palette_from_image_bytes(image_bytes, count=2)
+
+    assert palette == [(0, 0, 0), (10, 10, 10)]
+    assert fallback_used is False
+
+
 def test_album_palette_from_image_bytes_uses_fallback_when_colorgram_finds_no_colors(
     monkeypatch,
 ) -> None:
@@ -112,7 +156,7 @@ def test_album_palette_from_image_bytes_uses_fixed_fallback_after_palette_attemp
         album_palette_from_image_bytes(image_bytes, count=6)
 
 
-def test_album_palette_from_image_bytes_extracts_at_least_five_fallback_candidates(
+def test_album_palette_from_image_bytes_uses_fixed_colorgram_palette_count(
     monkeypatch,
 ) -> None:
     image_bytes = make_png_bytes((0, 170, 255, 255))
@@ -127,7 +171,6 @@ def test_album_palette_from_image_bytes_extracts_at_least_five_fallback_candidat
     album_palette_from_image_bytes(
         image_bytes,
         count=1,
-        colors=1,
     )
 
     assert requested_counts == [5]

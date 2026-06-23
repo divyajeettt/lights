@@ -1,13 +1,29 @@
-from src.color import parse_rgb, rgb_to_hsv_command
+import pytest
+
+from src.color import black_distance, normalize_rgb, parse_rgb, rgb_to_hsv_command
 
 
 def test_parse_rgb_parses_hex_string() -> None:
     assert parse_rgb("#00aaff") == (0, 170, 255)
 
 
-def test_rgb_to_hsv_command_applies_min_value_floor() -> None:
+def test_normalize_rgb_scales_byte_channels_to_unit_interval() -> None:
+    assert normalize_rgb((0, 128, 255)) == pytest.approx((0, 128 / 255, 1))
+
+
+def test_black_distance_can_normalize_rgb_distance_from_black() -> None:
+    assert black_distance((0, 0, 0), normalize=True) == 0
+    assert black_distance((255, 255, 255), normalize=True) == 1
+
+
+def test_black_distance_can_use_already_normalized_rgb() -> None:
+    assert black_distance((0, 0, 0), normalize=False) == 0
+    assert black_distance((1, 1, 1), normalize=False) == 1
+
+
+def test_rgb_to_hsv_command_turns_near_black_off() -> None:
     hsv = rgb_to_hsv_command((1, 1, 1), h_max=360, s_max=255, v_max=255)
-    assert hsv.v == 3
+    assert hsv.v == 0
 
 
 def test_rgb_to_hsv_command_scales_value_by_black_distance_gamma() -> None:
@@ -24,7 +40,7 @@ def test_rgb_to_hsv_command_scales_value_by_black_distance_gamma() -> None:
         v_max=1000,
     )
 
-    assert dark.v == 10
+    assert dark.v == 0
     assert bright.v == 318
     assert dark.v < bright.v
 

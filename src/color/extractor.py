@@ -9,7 +9,12 @@ from PIL import Image
 
 from src.models import Color
 
-from .constants import FALLBACK_PALETTE_ATTEMPTS
+from .constants import (
+    COLORGRAM_PALETTE_COLORS,
+    FALLBACK_PALETTE_ATTEMPTS,
+    NEAR_BLACK_THRESHOLD,
+)
+from .utils import black_distance
 
 
 def image_pixel_data(image: Image.Image) -> Any:
@@ -30,7 +35,7 @@ def _visible_rgb_image(image: Image.Image) -> Image.Image:
 
 def _colorgram_palette_from_image_bytes(
     image_bytes: bytes,
-    colors: int = 16,
+    colors: int,
 ) -> list[Color]:
     image = Image.open(BytesIO(image_bytes)).convert("RGBA")
     rgb_image = _visible_rgb_image(image)
@@ -43,34 +48,30 @@ def _colorgram_palette_from_image_bytes(
 
 
 def album_palette_from_image_bytes(
-    image_bytes: bytes,
-    count: int,
-    colors: int = 16,
+    image_bytes: bytes, *, count: int
 ) -> tuple[list[Color], bool]:
     if count <= 0:
         raise ValueError("Palette color count must be greater than 0")
 
-    extraction_count = max(colors, count, FALLBACK_PALETTE_ATTEMPTS)
+    extraction_count = max(COLORGRAM_PALETTE_COLORS, count, FALLBACK_PALETTE_ATTEMPTS)
     palette = _colorgram_palette_from_image_bytes(image_bytes, colors=extraction_count)
     fallback_used = False
 
-    selected = palette[:count]
-    if len(selected) < count:
-        selected.extend(palette[count:FALLBACK_PALETTE_ATTEMPTS])
+    visible_palette = [
+        color
+        for color in palette
+        if black_distance(color, normalize=True) > NEAR_BLACK_THRESHOLD
+    ]
+    selected = (
+        visible_palette[:count] if len(visible_palette) >= count else palette[:count]
+    )
     if len(selected) < count:
         raise RuntimeError("Album art image did not yield enough visible colors")
-    return selected[:count], fallback_used
+    return selected, fallback_used
 
 
-def album_rgb_from_image_bytes(
-    image_bytes: bytes,
-    colors: int = 16,
-) -> tuple[Color, bool]:
-    palette, fallback_used = album_palette_from_image_bytes(
-        image_bytes,
-        count=1,
-        colors=colors,
-    )
+def album_rgb_from_image_bytes(image_bytes: bytes) -> tuple[Color, bool]:
+    palette, fallback_used = album_palette_from_image_bytes(image_bytes, count=1)
     return palette[0], fallback_used
 
 
@@ -80,7 +81,7 @@ def album_rgb_from_url(image_url: str) -> tuple[Color, bool]:
     return album_rgb_from_image_bytes(response.content)
 
 
-def album_palette_from_url(image_url: str, count: int) -> tuple[list[Color], bool]:
+def album_palette_from_url(image_url: str, *, count: int) -> tuple[list[Color], bool]:
     response = requests.get(image_url, timeout=20)
     response.raise_for_status()
     return album_palette_from_image_bytes(response.content, count=count)
