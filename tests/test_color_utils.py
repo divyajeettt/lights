@@ -59,3 +59,8 @@ def test_rgb_to_hsv_command_allows_white_to_reach_full_value() -> None:
 def test_rgb_to_hsv_command_preserves_grayscale_saturation() -> None:
     hsv = rgb_to_hsv_command((128, 128, 128), h_max=360, s_max=255, v_max=255)
     assert hsv.s == 0
+
+
+def test_rgb_to_hsv_command_preserves_dark_grayscale_saturation() -> None:
+    hsv = rgb_to_hsv_command((64, 64, 64), h_max=360, s_max=1000, v_max=1000)
+    assert hsv.s == 0

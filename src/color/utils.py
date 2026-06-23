@@ -85,7 +85,7 @@ def rgb_to_hsv_command(rgb: Color, *, h_max: int, s_max: int, v_max: int) -> Hsv
 
     # 3. SATURATION BOOST: If the color is dark, pump up the saturation
     # to prevent the bulb from falling back to its bright white channel.
-    if distance_from_black < SATURATION_BOOST_THRESHOLD:
+    if s > 0 and distance_from_black < SATURATION_BOOST_THRESHOLD:
         # Quadratically scale saturation up the darker the color gets
         s_boost = ((1.0 - distance_from_black) ** 2) * SATURATION_BOOST_THRESHOLD
         s = min(1.0, s + s_boost)
