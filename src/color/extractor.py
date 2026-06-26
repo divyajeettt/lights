@@ -12,8 +12,8 @@ from src.models import Color
 from .constants import (
     COLORGRAM_PALETTE_COLORS,
     FALLBACK_PALETTE_ATTEMPTS,
-    MIN_DIVERSE_SATURATION_THRESHOLD,
     MIN_DIVERSE_HUE_DEGREES,
+    MIN_DIVERSE_SATURATION_THRESHOLD,
     NEAR_BLACK_THRESHOLD,
 )
 from .utils import black_distance, normalize_rgb
