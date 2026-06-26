@@ -195,10 +195,13 @@ must match the number of configured Tuya devices.
 
 The script uses `colorgram.py` to extract an ordered palette from album art.
 For multiple bulbs, it first tries to skip palette colors that are too close to
-black and uses the first available visible colors in palette order. If there are
-not enough non-black colors, it falls back to the top palette colors. If no
-visible palette color is found, the app raises an error instead of inventing a
-fallback color.
+black. When enough visible colors are available, it keeps palette prominence but
+prefers colors with distinct hues, so two bulbs do not use near-identical shades
+when a different prominent color is available. If distinct visible colors are
+not available, it backfills from the visible palette order. If there are not
+enough non-black colors, it falls back to the top palette colors. If no visible
+palette color is found, the app raises an error instead of inventing a fallback
+color.
 
 For Tuya bulbs, each selected RGB color is converted to HSV. Hue and saturation
 come from the RGB color, while brightness uses a gamma-adjusted RGB distance
@@ -320,7 +323,7 @@ Color extraction and conversion logic.
 - `src/color/extractor.py`
   - fetch image bytes from album-art URLs
   - extract ordered artwork palettes with `colorgram.py`
-  - prefer non-black palette colors when enough are available
+  - prefer non-black, hue-diverse palette colors when enough are available
   - raise when album art does not yield enough visible colors
 - `src/color/constants.py`
   - color math and palette extraction constants

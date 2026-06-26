@@ -80,6 +80,112 @@ def test_album_palette_from_image_bytes_uses_colorgram_palette_order(
     assert fallback_used is False
 
 
+def test_album_palette_from_image_bytes_prefers_distinct_visible_hues(
+    monkeypatch,
+) -> None:
+    image_bytes = make_png_bytes((0, 170, 255, 255))
+
+    monkeypatch.setattr(
+        extractor.colorgram,
+        "extract",
+        lambda _image, _colors: [
+            StubColor((0, 130, 255)),
+            StubColor((10, 170, 255)),
+            StubColor((40, 200, 100)),
+        ],
+    )
+
+    palette, fallback_used = album_palette_from_image_bytes(image_bytes, count=2)
+
+    assert palette == [(0, 130, 255), (40, 200, 100)]
+    assert fallback_used is False
+
+
+def test_album_palette_from_image_bytes_skips_similar_yellow_for_red(
+    monkeypatch,
+) -> None:
+    image_bytes = make_png_bytes((255, 210, 20, 255))
+
+    monkeypatch.setattr(
+        extractor.colorgram,
+        "extract",
+        lambda _image, _colors: [
+            StubColor((255, 210, 20)),
+            StubColor((245, 190, 30)),
+            StubColor((220, 50, 40)),
+        ],
+    )
+
+    palette, fallback_used = album_palette_from_image_bytes(image_bytes, count=2)
+
+    assert palette == [(255, 210, 20), (220, 50, 40)]
+    assert fallback_used is False
+
+
+def test_album_palette_from_image_bytes_prefers_distinct_hues_for_larger_counts(
+    monkeypatch,
+) -> None:
+    image_bytes = make_png_bytes((0, 130, 255, 255))
+
+    monkeypatch.setattr(
+        extractor.colorgram,
+        "extract",
+        lambda _image, _colors: [
+            StubColor((0, 130, 255)),
+            StubColor((10, 170, 255)),
+            StubColor((40, 200, 100)),
+            StubColor((220, 50, 40)),
+        ],
+    )
+
+    palette, fallback_used = album_palette_from_image_bytes(image_bytes, count=3)
+
+    assert palette == [(0, 130, 255), (40, 200, 100), (220, 50, 40)]
+    assert fallback_used is False
+
+
+def test_album_palette_from_image_bytes_does_not_force_low_saturation_diversity(
+    monkeypatch,
+) -> None:
+    image_bytes = make_png_bytes((0, 130, 255, 255))
+
+    monkeypatch.setattr(
+        extractor.colorgram,
+        "extract",
+        lambda _image, _colors: [
+            StubColor((0, 130, 255)),
+            StubColor((10, 170, 255)),
+            StubColor((245, 245, 235)),
+        ],
+    )
+
+    palette, fallback_used = album_palette_from_image_bytes(image_bytes, count=2)
+
+    assert palette == [(0, 130, 255), (10, 170, 255)]
+    assert fallback_used is False
+
+
+def test_album_palette_from_image_bytes_backfills_when_distinct_hues_run_out(
+    monkeypatch,
+) -> None:
+    image_bytes = make_png_bytes((0, 130, 255, 255))
+
+    monkeypatch.setattr(
+        extractor.colorgram,
+        "extract",
+        lambda _image, _colors: [
+            StubColor((0, 130, 255)),
+            StubColor((10, 170, 255)),
+            StubColor((20, 160, 245)),
+        ],
+    )
+
+    palette, fallback_used = album_palette_from_image_bytes(image_bytes, count=2)
+
+    assert palette == [(0, 130, 255), (10, 170, 255)]
+    assert fallback_used is False
+
+
 def test_album_palette_from_image_bytes_skips_near_black_palette_colors(
     monkeypatch,
 ) -> None:
