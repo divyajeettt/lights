@@ -25,6 +25,7 @@ from .constants import (
     TUYA_DEVICE_SPECIFICATIONS_PATH,
     TUYA_DEVICE_STATUS_PATH,
     TUYA_ENDPOINT,
+    TUYA_SWITCH_CODE_CANDIDATES,
     TUYA_TOKEN_PATH,
     TUYA_V2_SATURATION_VALUE_MAX,
 )
@@ -179,6 +180,7 @@ class TuyaLightSpec:
     h_max: int
     s_max: int
     v_max: int
+    switch_code: str | None = None
 
 
 def _parse_values(raw: Any) -> dict[str, Any]:
@@ -212,6 +214,7 @@ def infer_tuya_light_spec(specification: dict[str, Any]) -> TuyaLightSpec:
         raise ConfigError(
             "Could not infer Tuya color command from the device specification."
         )
+    switch_code = next((c for c in TUYA_SWITCH_CODE_CANDIDATES if c in by_code), None)
 
     values = _parse_values(by_code.get(color_code, {}).get(TuyaSpecField.VALUES))
     h_max = _value_max(values, TuyaHsvField.HUE, TUYA_DEFAULT_HUE_MAX)
@@ -239,6 +242,7 @@ def infer_tuya_light_spec(specification: dict[str, Any]) -> TuyaLightSpec:
         h_max=h_max,
         s_max=s_max,
         v_max=v_max,
+        switch_code=switch_code,
     )
 
 
@@ -251,6 +255,25 @@ class TuyaCloudLightController(SingleLightController):
     @property
     def light_labels(self) -> tuple[str, ...]:
         return (self.label,)
+
+    def _switch_code(self) -> str:
+        if not self.spec.switch_code:
+            raise ConfigError(
+                "Could not infer Tuya switch command from the device specification."
+            )
+        return self.spec.switch_code
+
+    def _is_switched_on(self) -> bool:
+        switch_code = self._switch_code()
+        for status in self.client.device_status():
+            if status.get(TuyaCommandField.CODE) == switch_code:
+                value = status.get(TuyaCommandField.VALUE)
+                if isinstance(value, bool):
+                    return value
+                raise RuntimeError(
+                    f"Tuya switch status for {self.label} is not boolean: {value!r}"
+                )
+        raise RuntimeError(f"Tuya switch status for {self.label} was not found")
 
     def set_rgb(self, rgb: Color) -> None:
         hsv = rgb_to_hsv_command(
@@ -269,6 +292,17 @@ class TuyaCloudLightController(SingleLightController):
                 {
                     TuyaCommandField.CODE: self.spec.color_code,
                     TuyaCommandField.VALUE: color_value,
+                }
+            ]
+        )
+
+    def switch(self) -> None:
+        switch_code = self._switch_code()
+        self.client.send_commands(
+            [
+                {
+                    TuyaCommandField.CODE: switch_code,
+                    TuyaCommandField.VALUE: not self._is_switched_on(),
                 }
             ]
         )

@@ -169,6 +169,12 @@ Test direct bulb control:
 python main.py --set-rgb '#00aaff'
 ```
 
+Toggle configured bulbs on or off:
+
+```sh
+python main.py --switch
+```
+
 ## Run
 
 Test Spotify and color extraction without changing the bulb:
@@ -218,6 +224,12 @@ Set a manual color to test bulb control:
 python main.py --set-rgb '#00aaff'
 ```
 
+Toggle all configured bulbs based on their current state:
+
+```sh
+python main.py --switch
+```
+
 On the first run, the script opens Spotify login in your browser and stores a
 refresh token under `.cache/spotify_token.json` with owner-only file
 permissions. If the browser callback never arrives, Spotify authorization times
@@ -229,12 +241,13 @@ out instead of blocking forever.
 
 The app starts in `main.py`.
 
-1. It builds the CLI parser and parses flags such as `--dry-run-once` and
-   `--set-rgb`.
+1. It builds the CLI parser and parses flags such as `--dry-run-once`,
+   `--set-rgb`, and `--switch`.
 2. It loads `.env` values with `load_dotenv()`.
 3. It validates CLI flag combinations and supported input formats.
 4. For direct actions:
    - `--set-rgb` sends a manual RGB color to the Tuya light controller.
+   - `--switch` toggles every configured Tuya light based on its current state.
 5. For normal watcher mode:
    - `build_spotify()` creates the Spotify client.
    - `build_light_controller()` creates the Tuya light controller unless
@@ -364,7 +377,7 @@ Light control abstraction and Tuya implementation.
   - Tuya device specification inference
   - Tuya light controller implementation
 - `src/light/constants.py`
-  - Tuya endpoint, API paths, color-code candidates, and HSV fallback values
+  - Tuya endpoint, API paths, command-code candidates, and HSV fallback values
 - `src/light/enums.py`
   - Tuya request, response, command, spec, token, header, and env string vocabularies
 
@@ -425,9 +438,9 @@ credentials. It covers:
   writes, and OAuth callback timeout/cleanup
 - runner dry-run-once behavior, invalid playback payloads, and unchanged-track
   skipping
-- CLI behavior for manual RGB commands and malformed user input
+- CLI behavior for manual RGB, switch commands, and malformed user input
 - Tuya light controller construction
-- Tuya spec inference and Tuya command payload generation
+- Tuya spec inference and Tuya color/switch command payload generation
 
 ## Notes
 

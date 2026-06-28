@@ -20,6 +20,9 @@ class LightController(Protocol):
     def set_rgbs(self, rgbs: Sequence[Color]) -> None:
         """Set controlled lights to one or more RGB colors."""
 
+    def switch(self) -> None:
+        """Toggle the light power state."""
+
 
 class SingleLightController:
     @property
@@ -70,3 +73,15 @@ class GroupLightController:
         if errors:
             message = "; ".join(errors)
             raise RuntimeError(f"Failed to update one or more lights: {message}")
+
+    def switch(self) -> None:
+        errors = []
+        labels = self.light_labels
+        for index, controller in enumerate(self.controllers):
+            try:
+                controller.switch()
+            except Exception as exc:
+                errors.append(f"{labels[index]}: {exc}")
+        if errors:
+            message = "; ".join(errors)
+            raise RuntimeError(f"Failed to switch one or more lights: {message}")
