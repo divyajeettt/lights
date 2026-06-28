@@ -44,7 +44,7 @@ class SpotifyRateLimitError(RuntimeError):
         self.retry_after = retry_after
 
 
-def parse_retry_after(headers: Any) -> int:
+def parse_retry_after(headers: requests.structures.CaseInsensitiveDict[str]) -> int:
     value = headers.get("Retry-After", "5")
     try:
         retry_after = int(value)
@@ -53,7 +53,7 @@ def parse_retry_after(headers: Any) -> int:
     return max(1, retry_after)
 
 
-def request_json(method: str, url: str, **kwargs: Any) -> Any:
+def request_json(method: str, url: str, **kwargs: dict) -> Any:
     response = requests.request(method, url, timeout=20, **kwargs)
     if response.status_code == 204:
         return None
