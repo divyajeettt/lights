@@ -354,6 +354,28 @@ def test_run_watcher_auto_switch_reports_shutdown_error(
     assert "Error switching bulb(s) off: offline" in captured.err
 
 
+def test_run_watcher_auto_switch_cleans_up_after_startup_error() -> None:
+    class FailingStartupController(StubController):
+        def set_power(self, on: bool) -> None:
+            super().set_power(on)
+            if on:
+                raise RuntimeError("startup failed")
+
+    spotify = StubSpotify([playback_payload()])
+    controller = FailingStartupController()
+
+    with pytest.raises(RuntimeError, match="startup failed"):
+        run_watcher(
+            spotify=spotify,
+            controller=controller,
+            poll_seconds=0.0,
+            dry_run_once=True,
+            auto_switch=True,
+        )
+
+    assert controller.power_calls == [True, False]
+
+
 def test_run_watcher_retries_same_track_after_color_error(monkeypatch) -> None:
     class StopLoop(Exception):
         pass

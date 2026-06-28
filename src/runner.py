@@ -181,12 +181,12 @@ def run_watcher(
         else default_labels
     )
 
-    if auto_switch:
-        print("Switching bulb(s) on")
-        controller.set_power(True)
-
     result = 0
     try:
+        if auto_switch:
+            print("Switching bulb(s) on")
+            controller.set_power(True)
+
         result = _run_watcher_loop(
             spotify=spotify,
             controller=controller,
