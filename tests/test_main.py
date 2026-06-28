@@ -7,9 +7,13 @@ from src.config import ConfigError
 class StubController:
     def __init__(self) -> None:
         self.calls: list[tuple[int, int, int]] = []
+        self.switch_calls = 0
 
     def set_rgb(self, rgb: tuple[int, int, int]) -> None:
         self.calls.append(rgb)
+
+    def switch(self) -> None:
+        self.switch_calls += 1
 
 
 def run_cli(monkeypatch, tmp_path, args: list[str]) -> int:
@@ -137,6 +141,23 @@ def test_main_set_rgb_only_uses_light_controller(monkeypatch, tmp_path) -> None:
     assert controller.calls == [(0, 170, 255)]
 
 
+def test_main_switch_uses_light_controller_without_spotify(
+    monkeypatch, tmp_path
+) -> None:
+    controller = StubController()
+
+    def fail_build_spotify():
+        raise AssertionError("--switch should not build Spotify")
+
+    monkeypatch.setattr(cli, "build_spotify", fail_build_spotify)
+    monkeypatch.setattr(cli, "build_light_controller", lambda: controller)
+
+    result = run_cli(monkeypatch, tmp_path, ["--switch"])
+
+    assert result == 0
+    assert controller.switch_calls == 1
+
+
 def test_main_set_rgb_rejects_invalid_color(monkeypatch, tmp_path, capsys) -> None:
     result = run_cli(monkeypatch, tmp_path, ["--set-rgb", "abc"])
 
@@ -155,6 +176,30 @@ def test_main_rejects_set_rgb_with_dry_run_once(monkeypatch, tmp_path, capsys) -
     captured = capsys.readouterr()
     assert result == 1
     assert "Error: --set-rgb cannot be combined with --dry-run-once" in captured.err
+
+
+def test_main_rejects_switch_with_dry_run_once(monkeypatch, tmp_path, capsys) -> None:
+    result = run_cli(
+        monkeypatch,
+        tmp_path,
+        ["--switch", "--dry-run-once"],
+    )
+
+    captured = capsys.readouterr()
+    assert result == 1
+    assert "Error: --switch cannot be combined with --dry-run-once" in captured.err
+
+
+def test_main_rejects_switch_with_set_rgb(monkeypatch, tmp_path, capsys) -> None:
+    result = run_cli(
+        monkeypatch,
+        tmp_path,
+        ["--switch", "--set-rgb", "#00aaff"],
+    )
+
+    captured = capsys.readouterr()
+    assert result == 1
+    assert "Error: --switch cannot be combined with --set-rgb" in captured.err
 
 
 def test_main_preserves_late_config_error_exit(monkeypatch, tmp_path, capsys) -> None:

@@ -22,5 +22,25 @@ def test_infer_tuya_light_spec_prefers_colour_data_v2() -> None:
     inferred = infer_tuya_light_spec(spec)
 
     assert inferred.color_code == "colour_data_v2"
+    assert inferred.switch_code == "switch_led"
     assert inferred.s_max == 1000
     assert inferred.v_max == 1000
+
+
+def test_infer_tuya_light_spec_supports_switch_fallback_code() -> None:
+    spec = {
+        "functions": [
+            {
+                "code": "switch",
+                "values": "{}",
+            },
+            {
+                "code": "colour_data",
+                "values": '{"h":{"max":360},"s":{"max":255},' '"v":{"max":255}}',
+            },
+        ]
+    }
+
+    inferred = infer_tuya_light_spec(spec)
+
+    assert inferred.switch_code == "switch"

@@ -15,3 +15,7 @@ TUYA_COLOR_CODE_CANDIDATES = (
     "color_data",
     "colour_data_hsv",
 )
+TUYA_SWITCH_CODE_CANDIDATES = (
+    "switch_led",
+    "switch",
+)
