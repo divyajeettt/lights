@@ -1,5 +1,7 @@
 """Spotify client and auth helpers."""
 
+from typing import Final
+
 from .client import (
     SpotifyClient,
     SpotifyRateLimitError,
@@ -15,7 +17,7 @@ from .constants import (
 from .enums import SpotifyTokenField
 from .factory import build_spotify
 
-__all__ = [
+__all__: Final[list[str]] = [
     "SPOTIFY_CACHE_FILE",
     "SPOTIFY_CALLBACK_POLL_SECONDS",
     "SPOTIFY_CALLBACK_TIMEOUT_SECONDS",

@@ -11,7 +11,7 @@ import urllib.parse
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import requests
 
@@ -69,7 +69,7 @@ def request_json(method: str, url: str, **kwargs: Any) -> Any:
 
 
 class SpotifyCallbackHandler(BaseHTTPRequestHandler):
-    server_version = "SpotifyCallback/1.0"
+    server_version: ClassVar[str] = "SpotifyCallback/1.0"
 
     def do_GET(self) -> None:
         parsed = urllib.parse.urlparse(self.path)

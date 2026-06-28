@@ -2,6 +2,7 @@
 
 import argparse
 import sys
+from typing import Final
 
 from src.color import parse_rgb, rgb_hex
 from src.config import ConfigError, load_dotenv
@@ -11,8 +12,8 @@ from src.models import Color
 from src.runner import run_watcher
 from src.spotify import build_spotify
 
-POLL_SECONDS = 1.0
-LIGHT_COLOR_MODE = LightColorMode.ALBUM_PALETTE
+POLL_SECONDS: Final[float] = 1.0
+LIGHT_COLOR_MODE: Final[LightColorMode] = LightColorMode.ALBUM_PALETTE
 
 
 def _set_manual_rgb(rgb: Color) -> None:
