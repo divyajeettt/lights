@@ -8,9 +8,13 @@ from src.spotify import SpotifyRateLimitError
 class StubController:
     def __init__(self) -> None:
         self.calls: list[tuple[int, int, int]] = []
+        self.power_calls: list[bool] = []
 
     def set_rgb(self, rgb: tuple[int, int, int]) -> None:
         self.calls.append(rgb)
+
+    def set_power(self, on: bool) -> None:
+        self.power_calls.append(on)
 
 
 class StubGroupController:
@@ -18,9 +22,13 @@ class StubGroupController:
 
     def __init__(self) -> None:
         self.calls = []
+        self.power_calls: list[bool] = []
 
     def set_rgbs(self, rgbs):
         self.calls.append(list(rgbs))
+
+    def set_power(self, on: bool) -> None:
+        self.power_calls.append(on)
 
 
 class StubSpotify:
@@ -220,6 +228,152 @@ def test_run_watcher_defaults_to_album_palette_for_multiple_lights(monkeypatch) 
 
     assert result == 0
     assert controller.calls == [[(0, 170, 255), (255, 102, 0)]]
+
+
+def test_run_watcher_auto_switch_powers_lights_around_watcher(monkeypatch) -> None:
+    class StopLoop(Exception):
+        pass
+
+    spotify = StubSpotify([playback_payload()])
+    controller = StubController()
+    original = __import__("src.runner", fromlist=["album_rgb_from_url", "time"])
+    monkeypatch.setattr(
+        original,
+        "album_rgb_from_url",
+        lambda _url: ((0, 170, 255), False),
+    )
+    monkeypatch.setattr(
+        original.time,
+        "sleep",
+        lambda _seconds: (_ for _ in ()).throw(StopLoop),
+    )
+
+    with pytest.raises(StopLoop):
+        run_watcher(
+            spotify=spotify,
+            controller=controller,
+            poll_seconds=0.0,
+            dry_run_once=False,
+            color_mode=LightColorMode.SAME,
+            auto_switch=True,
+        )
+
+    assert controller.power_calls == [True, False]
+
+
+def test_run_watcher_auto_switch_turns_lights_off_after_keyboard_interrupt(
+    monkeypatch,
+) -> None:
+    spotify = StubSpotify([playback_payload()])
+    controller = StubController()
+    original = __import__("src.runner", fromlist=["album_rgb_from_url", "time"])
+    monkeypatch.setattr(
+        original,
+        "album_rgb_from_url",
+        lambda _url: ((0, 170, 255), False),
+    )
+    monkeypatch.setattr(
+        original.time,
+        "sleep",
+        lambda _seconds: (_ for _ in ()).throw(KeyboardInterrupt),
+    )
+
+    result = run_watcher(
+        spotify=spotify,
+        controller=controller,
+        poll_seconds=0.0,
+        dry_run_once=False,
+        color_mode=LightColorMode.SAME,
+        auto_switch=True,
+    )
+
+    assert result == 130
+    assert controller.power_calls == [True, False]
+
+
+def test_run_watcher_without_auto_switch_propagates_keyboard_interrupt(
+    monkeypatch,
+) -> None:
+    spotify = StubSpotify([playback_payload()])
+    controller = StubController()
+    original = __import__("src.runner", fromlist=["album_rgb_from_url", "time"])
+    monkeypatch.setattr(
+        original,
+        "album_rgb_from_url",
+        lambda _url: ((0, 170, 255), False),
+    )
+    monkeypatch.setattr(
+        original.time,
+        "sleep",
+        lambda _seconds: (_ for _ in ()).throw(KeyboardInterrupt),
+    )
+
+    with pytest.raises(KeyboardInterrupt):
+        run_watcher(
+            spotify=spotify,
+            controller=controller,
+            poll_seconds=0.0,
+            dry_run_once=False,
+            color_mode=LightColorMode.SAME,
+        )
+
+    assert controller.power_calls == []
+
+
+def test_run_watcher_auto_switch_reports_shutdown_error(
+    monkeypatch,
+    capsys,
+) -> None:
+    class FailingShutdownController(StubController):
+        def set_power(self, on: bool) -> None:
+            super().set_power(on)
+            if not on:
+                raise RuntimeError("offline")
+
+    spotify = StubSpotify([playback_payload()])
+    controller = FailingShutdownController()
+    original = __import__("src.runner", fromlist=["album_rgb_from_url"])
+    monkeypatch.setattr(
+        original,
+        "album_rgb_from_url",
+        lambda _url: ((0, 170, 255), False),
+    )
+
+    result = run_watcher(
+        spotify=spotify,
+        controller=controller,
+        poll_seconds=0.0,
+        dry_run_once=True,
+        color_mode=LightColorMode.SAME,
+        auto_switch=True,
+    )
+
+    captured = capsys.readouterr()
+    assert result == 1
+    assert controller.power_calls == [True, False]
+    assert "Error switching bulb(s) off: offline" in captured.err
+
+
+def test_run_watcher_auto_switch_cleans_up_after_startup_error() -> None:
+    class FailingStartupController(StubController):
+        def set_power(self, on: bool) -> None:
+            super().set_power(on)
+            if on:
+                raise RuntimeError("startup failed")
+
+    spotify = StubSpotify([playback_payload()])
+    controller = FailingStartupController()
+
+    with pytest.raises(RuntimeError, match="startup failed"):
+        run_watcher(
+            spotify=spotify,
+            controller=controller,
+            poll_seconds=0.0,
+            dry_run_once=True,
+            auto_switch=True,
+        )
+
+    assert controller.power_calls == [True, False]
 
 
 def test_run_watcher_retries_same_track_after_color_error(monkeypatch) -> None:

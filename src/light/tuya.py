@@ -297,12 +297,14 @@ class TuyaCloudLightController(SingleLightController):
         )
 
     def switch(self) -> None:
-        switch_code = self._switch_code()
+        self.set_power(not self._is_switched_on())
+
+    def set_power(self, on: bool) -> None:
         self.client.send_commands(
             [
                 {
-                    TuyaCommandField.CODE: switch_code,
-                    TuyaCommandField.VALUE: not self._is_switched_on(),
+                    TuyaCommandField.CODE: self._switch_code(),
+                    TuyaCommandField.VALUE: on,
                 }
             ]
         )

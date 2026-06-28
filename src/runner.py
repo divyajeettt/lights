@@ -126,22 +126,16 @@ def apply_track_light_colors(
     print("Bulb colors updated.")
 
 
-def run_watcher(
+def _run_watcher_loop(
     spotify: SpotifyClient,
     controller: LightController | None,
     poll_seconds: float,
     dry_run_once: bool,
-    light_count: int = 1,
-    color_mode: LightColorMode = LightColorMode.ALBUM_PALETTE,
+    light_labels: list[str],
+    light_count: int,
+    color_mode: LightColorMode,
 ) -> int:
     last_track_id = None
-    default_labels = [f"bulb {index + 1}" for index in range(light_count)]
-    light_labels = (
-        list(getattr(controller, "light_labels", default_labels))
-        if controller is not None
-        else default_labels
-    )
-
     while True:
         try:
             summary = current_track_summary(spotify)
@@ -169,3 +163,51 @@ def run_watcher(
         if dry_run_once:
             return 0
         time.sleep(poll_seconds)
+
+
+def run_watcher(
+    spotify: SpotifyClient,
+    controller: LightController | None,
+    poll_seconds: float,
+    dry_run_once: bool,
+    light_count: int = 1,
+    color_mode: LightColorMode = LightColorMode.ALBUM_PALETTE,
+    auto_switch: bool = False,
+) -> int:
+    default_labels = [f"bulb {index}" for index in range(1, light_count + 1)]
+    light_labels = (
+        list(getattr(controller, "light_labels", default_labels))
+        if controller is not None
+        else default_labels
+    )
+
+    result = 0
+    try:
+        if auto_switch:
+            print("Switching bulb(s) on")
+            controller.set_power(True)
+
+        result = _run_watcher_loop(
+            spotify=spotify,
+            controller=controller,
+            poll_seconds=poll_seconds,
+            dry_run_once=dry_run_once,
+            light_labels=light_labels,
+            light_count=light_count,
+            color_mode=color_mode,
+        )
+    except KeyboardInterrupt:
+        if not auto_switch:
+            raise
+        result = 130
+    finally:
+        if auto_switch:
+            try:
+                print("Switching bulb(s) off")
+                controller.set_power(False)
+            except Exception as exc:
+                print(f"Error switching bulb(s) off: {exc}", file=sys.stderr)
+                if result == 0:
+                    result = 1
+
+    return result

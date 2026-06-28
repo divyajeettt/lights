@@ -80,7 +80,29 @@ def test_main_default_run_calls_watcher(monkeypatch, tmp_path) -> None:
         "dry_run_once": False,
         "light_count": 1,
         "color_mode": cli.LightColorMode.ALBUM_PALETTE,
+        "auto_switch": False,
     }
+
+
+def test_main_auto_switch_passes_option_to_watcher(monkeypatch, tmp_path) -> None:
+    controller = StubController()
+    calls = {}
+
+    monkeypatch.setenv("TUYA_DEVICE_ID", "device-1")
+    monkeypatch.setattr(cli, "build_spotify", lambda: "spotify")
+    monkeypatch.setattr(cli, "build_light_controller", lambda: controller)
+
+    def run_watcher(**kwargs):
+        calls.update(kwargs)
+        return 0
+
+    monkeypatch.setattr(cli, "run_watcher", run_watcher)
+
+    result = run_cli(monkeypatch, tmp_path, ["--auto-switch"])
+
+    assert result == 0
+    assert calls["controller"] is controller
+    assert calls["auto_switch"] is True
 
 
 def test_main_dry_run_once_calls_watcher_without_controller(
@@ -111,6 +133,7 @@ def test_main_dry_run_once_calls_watcher_without_controller(
         "dry_run_once": True,
         "light_count": 1,
         "color_mode": cli.LightColorMode.ALBUM_PALETTE,
+        "auto_switch": False,
     }
 
 
@@ -200,6 +223,44 @@ def test_main_rejects_switch_with_set_rgb(monkeypatch, tmp_path, capsys) -> None
     captured = capsys.readouterr()
     assert result == 1
     assert "Error: --switch cannot be combined with --set-rgb" in captured.err
+
+
+def test_main_rejects_auto_switch_with_dry_run_once(
+    monkeypatch, tmp_path, capsys
+) -> None:
+    result = run_cli(
+        monkeypatch,
+        tmp_path,
+        ["--auto-switch", "--dry-run-once"],
+    )
+
+    captured = capsys.readouterr()
+    assert result == 1
+    assert "Error: --auto-switch cannot be combined with --dry-run-once" in captured.err
+
+
+def test_main_rejects_auto_switch_with_set_rgb(monkeypatch, tmp_path, capsys) -> None:
+    result = run_cli(
+        monkeypatch,
+        tmp_path,
+        ["--auto-switch", "--set-rgb", "#00aaff"],
+    )
+
+    captured = capsys.readouterr()
+    assert result == 1
+    assert "Error: --auto-switch cannot be combined with --set-rgb" in captured.err
+
+
+def test_main_rejects_auto_switch_with_switch(monkeypatch, tmp_path, capsys) -> None:
+    result = run_cli(
+        monkeypatch,
+        tmp_path,
+        ["--auto-switch", "--switch"],
+    )
+
+    captured = capsys.readouterr()
+    assert result == 1
+    assert "Error: --auto-switch cannot be combined with --switch" in captured.err
 
 
 def test_main_preserves_late_config_error_exit(monkeypatch, tmp_path, capsys) -> None:

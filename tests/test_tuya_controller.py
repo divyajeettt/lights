@@ -17,11 +17,13 @@ class StubTuyaClient:
                 TuyaCommandField.VALUE: True,
             }
         ]
+        self.status_calls = 0
 
     def device_specification(self):
         return {"functions": []}
 
     def device_status(self):
+        self.status_calls += 1
         return self.status
 
     def send_commands(self, commands):
@@ -86,6 +88,7 @@ def test_tuya_controller_switches_on_light_off(monkeypatch) -> None:
             TuyaCommandField.VALUE: True,
         }
     ]
+    assert client.status_calls == 1
 
 
 def test_tuya_controller_switches_off_light_on(monkeypatch) -> None:
@@ -99,3 +102,23 @@ def test_tuya_controller_switches_off_light_on(monkeypatch) -> None:
             TuyaCommandField.VALUE: False,
         }
     ]
+
+
+def test_tuya_controller_sets_power_without_status_read(monkeypatch) -> None:
+    controller, client = make_controller(monkeypatch)
+    client.status = [
+        {
+            TuyaCommandField.CODE: "switch_led",
+            TuyaCommandField.VALUE: False,
+        }
+    ]
+
+    controller.set_power(True)
+
+    assert client.commands == [
+        {
+            TuyaCommandField.CODE: "switch_led",
+            TuyaCommandField.VALUE: True,
+        }
+    ]
+    assert client.status_calls == 0
