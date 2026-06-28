@@ -1,5 +1,7 @@
 """Color utilities and album-art extraction."""
 
+from typing import Final
+
 from .extractor import (
     album_palette_from_image_bytes,
     album_palette_from_url,
@@ -17,7 +19,7 @@ from .utils import (
     rgb_to_hsv_command,
 )
 
-__all__ = [
+__all__: Final[list[str]] = [
     "HsvCommand",
     "album_palette_from_image_bytes",
     "album_palette_from_url",

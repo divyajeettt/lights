@@ -1,5 +1,7 @@
 """Application package for Spotify album art bulb sync."""
 
+from typing import Final
+
 from .config import (
     ConfigError,
     env,
@@ -10,7 +12,7 @@ from .config import (
 )
 from .models import Color, TrackColor, TrackSummary
 
-__all__ = [
+__all__: Final[list[str]] = [
     "Color",
     "ConfigError",
     "TrackColor",
