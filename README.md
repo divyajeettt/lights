@@ -189,6 +189,13 @@ Run continuously:
 python main.py
 ```
 
+Run continuously while switching configured bulbs on at startup and off when the
+app exits:
+
+```sh
+python main.py --auto-switch
+```
+
 Spotify is polled on a fixed internal interval.
 
 Configured bulbs receive different colors from the same album art. This mode is
@@ -230,6 +237,17 @@ Toggle all configured bulbs based on their current state:
 python main.py --switch
 ```
 
+Run continuously while automatically switching configured bulbs on during app
+startup and off during app shutdown:
+
+```sh
+python main.py --auto-switch
+```
+
+Shutdown switching runs when the app exits normally or after `CTRL+C`. It is a
+best-effort cleanup step, so it can still be skipped or fail if the process is
+killed, the machine sleeps, or Tuya Cloud is unreachable.
+
 On the first run, the script opens Spotify login in your browser and stores a
 refresh token under `.cache/spotify_token.json` with owner-only file
 permissions. If the browser callback never arrives, Spotify authorization times
@@ -242,7 +260,7 @@ out instead of blocking forever.
 The app starts in `main.py`.
 
 1. It builds the CLI parser and parses flags such as `--dry-run-once`,
-   `--set-rgb`, and `--switch`.
+   `--set-rgb`, `--switch`, and `--auto-switch`.
 2. It loads `.env` values with `load_dotenv()`.
 3. It validates CLI flag combinations and supported input formats.
 4. For direct actions:
@@ -252,6 +270,8 @@ The app starts in `main.py`.
    - `build_spotify()` creates the Spotify client.
    - `build_light_controller()` creates the Tuya light controller unless
      `--dry-run-once` is enabled.
+   - `--auto-switch` switches configured lights on before the watcher starts
+     and off when the watcher exits.
    - `run_watcher()` polls Spotify, resolves album-art color only when the
      track changes, and updates the bulb.
 
@@ -370,6 +390,7 @@ Light control abstraction and Tuya implementation.
 
 - `src/light/base.py`
   - `LightController` protocol used by the runner
+  - grouped color and power operations for multiple configured lights
 - `src/light/factory.py`
   - creates the Tuya light controller
 - `src/light/tuya.py`
@@ -439,6 +460,7 @@ credentials. It covers:
 - runner dry-run-once behavior, invalid playback payloads, and unchanged-track
   skipping
 - CLI behavior for manual RGB, switch commands, and malformed user input
+- auto-switch startup and shutdown power behavior
 - Tuya light controller construction
 - Tuya spec inference and Tuya color/switch command payload generation
 

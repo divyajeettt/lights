@@ -43,6 +43,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Toggle configured bulbs on or off and exit.",
     )
+    parser.add_argument(
+        "--auto-switch",
+        action="store_true",
+        help="Switch bulbs on while the app runs and off when it exits.",
+    )
     return parser
 
 
@@ -53,12 +58,20 @@ def main() -> int:
     try:
         load_dotenv()
 
-        if args.dry_run_once and args.set_rgb:
-            raise ValueError("--set-rgb cannot be combined with --dry-run-once")
-        if args.dry_run_once and args.switch:
-            raise ValueError("--switch cannot be combined with --dry-run-once")
-        if args.set_rgb and args.switch:
-            raise ValueError("--switch cannot be combined with --set-rgb")
+        selected_actions = [
+            option
+            for option, selected in (
+                ("--dry-run-once", args.dry_run_once),
+                ("--set-rgb", args.set_rgb),
+                ("--switch", args.switch),
+                ("--auto-switch", args.auto_switch),
+            )
+            if selected
+        ]
+        if len(selected_actions) > 1:
+            raise ValueError(
+                f"{selected_actions[1]} cannot be combined with {selected_actions[0]}"
+            )
 
         if args.set_rgb:
             rgb = parse_rgb(args.set_rgb)
@@ -81,6 +94,7 @@ def main() -> int:
             dry_run_once=args.dry_run_once,
             light_count=light_count,
             color_mode=LIGHT_COLOR_MODE,
+            auto_switch=args.auto_switch,
         )
     except ConfigError as exc:
         print(f"Configuration error: {exc}", file=sys.stderr)
