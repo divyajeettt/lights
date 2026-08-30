@@ -257,7 +257,9 @@ each bulb. A slow or unreachable bulb therefore does not delay commands sent
 to the other bulbs. If any command fails or times out, the final error includes
 the label and failure for every affected bulb. Commands to a bulb with an
 operation still running are rejected until that operation finishes, preventing
-older and newer commands from overlapping on the same device.
+older and newer commands from overlapping on the same device. TinyTuya network
+calls use one-second socket timeouts and a connection retry limit of one so an
+unreachable local device finishes within the group deadline.
 
 Automatic shutdown switching is best effort. It cannot run if the process is
 force-killed, the Mac sleeps, or a bulb is unreachable.

@@ -9,7 +9,12 @@ from src.color import rgb_to_hsv_command
 from src.models import Color
 
 from .base import SingleLightController
-from .constants import TINYTUYA_HUE_MAX, TINYTUYA_SATURATION_VALUE_MAX
+from .constants import (
+    TINYTUYA_HUE_MAX,
+    TINYTUYA_SATURATION_VALUE_MAX,
+    TINYTUYA_SOCKET_RETRY_LIMIT,
+    TINYTUYA_SOCKET_TIMEOUT_SECONDS,
+)
 
 
 class TinyTuyaLightController(SingleLightController):
@@ -25,6 +30,8 @@ class TinyTuyaLightController(SingleLightController):
         self._local_key = local_key
         self.device = tinytuya.BulbDevice(device_id, address, local_key)
         self.device.set_version(protocol_version)
+        self.device.set_socketTimeout(TINYTUYA_SOCKET_TIMEOUT_SECONDS)
+        self.device.set_socketRetryLimit(TINYTUYA_SOCKET_RETRY_LIMIT)
 
     @property
     def light_labels(self) -> tuple[str, ...]:
