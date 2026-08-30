@@ -367,7 +367,7 @@ implementation isolated from Spotify and color extraction.
 Run the offline test suite from the repository root:
 
 ```sh
-PYTHONPATH=. .venv/bin/python -m pytest tests
+pytest
 ```
 
 Tests mock TinyTuya devices, so they do not contact bulbs or need real keys.
