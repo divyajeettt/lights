@@ -165,6 +165,15 @@ def test_configured_tinytuya_devices_validates_each_record(
         configured_tinytuya_devices()
 
 
+def test_configured_tinytuya_devices_preserves_validation_order(monkeypatch) -> None:
+    configure_devices(monkeypatch, count=2)
+    monkeypatch.setenv("TUYA_LOCAL_KEYS", "test-key-0000001,short")
+    monkeypatch.setenv("TUYA_PROTOCOL_VERSIONS", "2.1,3.3")
+
+    with pytest.raises(ConfigError, match="TUYA_LOCAL_KEYS entry 2"):
+        configured_tinytuya_devices()
+
+
 def test_build_light_controller_requires_every_local_setting(monkeypatch) -> None:
     monkeypatch.setenv("TUYA_DEVICE_IDS", "device-1")
 
