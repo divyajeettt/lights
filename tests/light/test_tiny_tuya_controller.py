@@ -14,9 +14,17 @@ class StubBulbDevice:
         self.power_calls = []
         self.current_state = {"is_on": True}
         self.next_result = None
+        self.socket_retry_limit = None
+        self.socket_timeout = None
 
     def set_version(self, version) -> None:
         self.version = version
+
+    def set_socketRetryLimit(self, limit) -> None:
+        self.socket_retry_limit = limit
+
+    def set_socketTimeout(self, timeout) -> None:
+        self.socket_timeout = timeout
 
     def set_hsv(self, hue, saturation, value):
         self.hsv_colours.append((hue, saturation, value))
@@ -59,6 +67,8 @@ def test_controller_configures_local_bulb(monkeypatch) -> None:
     assert controller.light_labels == ("desk",)
     assert device.constructor_args == ("device-1", "192.168.1.10", "secret-key")
     assert device.version == 3.3
+    assert device.socket_timeout == 1.0
+    assert device.socket_retry_limit == 1
 
 
 def test_controller_preserves_application_hsv_policy(monkeypatch) -> None:
