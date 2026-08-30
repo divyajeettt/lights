@@ -23,7 +23,7 @@ def run_cli(monkeypatch, tmp_path, args: list[str]) -> int:
 
 
 def test_main_preserves_config_error_exit(monkeypatch, tmp_path, capsys) -> None:
-    monkeypatch.setenv("TUYA_DEVICE_ID", "device-1")
+    monkeypatch.setenv("TUYA_DEVICE_IDS", "device-1")
 
     def fail_build_spotify():
         raise ConfigError("missing spotify client")
@@ -40,7 +40,7 @@ def test_main_preserves_config_error_exit(monkeypatch, tmp_path, capsys) -> None
 def test_main_uses_fixed_poll_seconds(monkeypatch, tmp_path) -> None:
     calls = {}
 
-    monkeypatch.setenv("TUYA_DEVICE_ID", "device-1")
+    monkeypatch.setenv("TUYA_DEVICE_IDS", "device-1")
     monkeypatch.setattr(cli, "build_spotify", lambda: "spotify")
     monkeypatch.setattr(cli, "build_light_controller", lambda: StubController())
 
@@ -60,7 +60,7 @@ def test_main_default_run_calls_watcher(monkeypatch, tmp_path) -> None:
     controller = StubController()
     calls = {}
 
-    monkeypatch.setenv("TUYA_DEVICE_ID", "device-1")
+    monkeypatch.setenv("TUYA_DEVICE_IDS", "device-1")
     monkeypatch.setattr(cli, "build_spotify", lambda: "spotify")
     monkeypatch.setattr(cli, "build_light_controller", lambda: controller)
 
@@ -88,7 +88,7 @@ def test_main_auto_switch_passes_option_to_watcher(monkeypatch, tmp_path) -> Non
     controller = StubController()
     calls = {}
 
-    monkeypatch.setenv("TUYA_DEVICE_ID", "device-1")
+    monkeypatch.setenv("TUYA_DEVICE_IDS", "device-1")
     monkeypatch.setattr(cli, "build_spotify", lambda: "spotify")
     monkeypatch.setattr(cli, "build_light_controller", lambda: controller)
 

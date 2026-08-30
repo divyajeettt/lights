@@ -4,3 +4,9 @@
 __pycache__/
 .pytest_cache/
 *.pyc
+
+# TinyTuya-generated credentials and device snapshots.
+/devices.json
+/tinytuya.json
+/tuya-raw.json
+/snapshot.json
