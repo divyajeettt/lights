@@ -75,7 +75,7 @@ class TinyTuyaLightController(SingleLightController):
         operation = "power on" if on else "power off"
         self._call(operation, action)
 
-    def switch(self) -> None:
+    def read_state(self) -> dict[str, Any]:
         state = self._call("state read", self.device.state)
         is_on = state.get("is_on") if isinstance(state, dict) else None
         if not isinstance(is_on, bool):
@@ -83,4 +83,9 @@ class TinyTuyaLightController(SingleLightController):
                 f"TinyTuya state read failed for {self.label}: "
                 "response did not contain a boolean is_on value"
             )
+        return state
+
+    def switch(self) -> None:
+        state = self.read_state()
+        is_on = state["is_on"]
         self.set_power(not is_on)

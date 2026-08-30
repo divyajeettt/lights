@@ -6,6 +6,7 @@ from typing import Final
 
 from src.color import parse_rgb, rgb_hex
 from src.config import ConfigError, load_dotenv
+from src.diagnostics import run_diagnostics
 from src.enums import LightColorMode
 from src.light import build_light_controller, configured_light_count
 from src.models import Color
@@ -29,6 +30,11 @@ def _switch_lights() -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Sync a smart bulb color to Spotify album art."
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Run read-only Spotify, album-art, and per-bulb diagnostics.",
     )
     parser.add_argument(
         "--dry-run-once",
@@ -63,6 +69,7 @@ def main() -> int:
             option
             for option, selected in (
                 ("--dry-run-once", args.dry_run_once),
+                ("--check", args.check),
                 ("--set-rgb", args.set_rgb),
                 ("--switch", args.switch),
                 ("--auto-switch", args.auto_switch),
@@ -79,6 +86,9 @@ def main() -> int:
             print(f"Setting bulb(s) to {rgb_hex(rgb)}")
             _set_manual_rgb(rgb)
             return 0
+
+        if args.check:
+            return run_diagnostics()
 
         if args.switch:
             print("Switching bulb(s)")
