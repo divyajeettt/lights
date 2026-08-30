@@ -144,6 +144,27 @@ def test_build_light_controller_rejects_invalid_local_key_length(monkeypatch) ->
         build_light_controller()
 
 
+@pytest.mark.parametrize(
+    "name,value,error",
+    [
+        ("TUYA_LOCAL_KEYS", "test-key-0000001,short", "TUYA_LOCAL_KEYS entry 2"),
+        (
+            "TUYA_PROTOCOL_VERSIONS",
+            "3.3,2.1",
+            "TUYA_PROTOCOL_VERSIONS entry 2",
+        ),
+    ],
+)
+def test_configured_tinytuya_devices_validates_each_record(
+    monkeypatch, name, value, error
+) -> None:
+    configure_devices(monkeypatch, count=2)
+    monkeypatch.setenv(name, value)
+
+    with pytest.raises(ConfigError, match=error):
+        configured_tinytuya_devices()
+
+
 def test_build_light_controller_requires_every_local_setting(monkeypatch) -> None:
     monkeypatch.setenv("TUYA_DEVICE_IDS", "device-1")
 
