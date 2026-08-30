@@ -19,6 +19,24 @@ class TinyTuyaDeviceConfig:
     label: str
 
 
+@dataclass(frozen=True)
+class _TinyTuyaDeviceEnvRecord:
+    device_id: str
+    address: str
+    local_key: str
+    protocol_version: str
+    label: str
+
+    def normalized(self) -> TinyTuyaDeviceConfig:
+        return TinyTuyaDeviceConfig(
+            device_id=self.device_id,
+            address=self.address,
+            local_key=self.local_key,
+            protocol_version=float(self.protocol_version),
+            label=self.label,
+        )
+
+
 def configured_tuya_device_ids(required: bool = True) -> list[str]:
     return env_csv(TinyTuyaEnvVar.DEVICE_IDS, required=required)
 
@@ -59,40 +77,39 @@ def configured_tinytuya_devices() -> list[TinyTuyaDeviceConfig]:
                 f"{TinyTuyaEnvVar.DEVICE_IDS}"
             )
 
-    local_keys = fields[TinyTuyaEnvVar.LOCAL_KEYS]
-    for index, local_key in enumerate(local_keys, start=1):
-        if len(local_key) != TINYTUYA_LOCAL_KEY_LENGTH:
-            raise ConfigError(
-                f"TUYA_LOCAL_KEYS entry {index} must contain exactly "
-                f"{TINYTUYA_LOCAL_KEY_LENGTH} characters"
-            )
-
-    versions = fields[TinyTuyaEnvVar.PROTOCOL_VERSIONS]
-    for index, version in enumerate(versions, start=1):
-        if version not in SUPPORTED_TUYA_PROTOCOL_VERSIONS:
-            supported = ", ".join(sorted(SUPPORTED_TUYA_PROTOCOL_VERSIONS))
-            raise ConfigError(
-                f"TUYA_PROTOCOL_VERSIONS entry {index} must be one of: {supported}"
-            )
-
-    labels = configured_tuya_device_labels(len(device_ids))
-    return [
-        TinyTuyaDeviceConfig(
+    records = [
+        _TinyTuyaDeviceEnvRecord(
             device_id=device_id,
             address=address,
             local_key=local_key,
-            protocol_version=float(version),
+            protocol_version=version,
             label=label,
         )
         for device_id, address, local_key, version, label in zip(
             device_ids,
             fields[TinyTuyaEnvVar.DEVICE_IPS],
             fields[TinyTuyaEnvVar.LOCAL_KEYS],
-            versions,
-            labels,
+            fields[TinyTuyaEnvVar.PROTOCOL_VERSIONS],
+            configured_tuya_device_labels(len(device_ids)),
             strict=True,
         )
     ]
+
+    for index, record in enumerate(records, start=1):
+        if len(record.local_key) != TINYTUYA_LOCAL_KEY_LENGTH:
+            raise ConfigError(
+                f"TUYA_LOCAL_KEYS entry {index} must contain exactly "
+                f"{TINYTUYA_LOCAL_KEY_LENGTH} characters"
+            )
+
+    for index, record in enumerate(records, start=1):
+        if record.protocol_version not in SUPPORTED_TUYA_PROTOCOL_VERSIONS:
+            supported = ", ".join(sorted(SUPPORTED_TUYA_PROTOCOL_VERSIONS))
+            raise ConfigError(
+                f"TUYA_PROTOCOL_VERSIONS entry {index} must be one of: {supported}"
+            )
+
+    return [record.normalized() for record in records]
 
 
 def build_light_controller() -> LightController:
