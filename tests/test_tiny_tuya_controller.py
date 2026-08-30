@@ -1,3 +1,5 @@
+import traceback
+
 import pytest
 
 import src.light.tiny_tuya as tiny_tuya_module
@@ -120,3 +122,6 @@ def test_controller_redacts_local_key_from_exception(monkeypatch) -> None:
 
     assert "secret-key" not in str(error.value)
     assert "[redacted]" in str(error.value)
+    assert "secret-key" not in "".join(traceback.format_exception(error.value))
+    assert error.value.__cause__ is None
+    assert error.value.__context__ is None

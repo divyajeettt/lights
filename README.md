@@ -149,15 +149,17 @@ TUYA_PROTOCOL_VERSIONS=3.3,3.3
 TUYA_DEVICE_LABELS=desk bulb,floor bulb
 ```
 
-If a local key contains `#` or another character that a shell may interpret,
-single-quote the entire comma-separated value, not each individual key:
+Local keys contain exactly 16 characters. The application's `.env` loader
+treats `#` as data after the `=`, so it does not need escaping. Existing files
+that single-quote the entire comma-separated value remain supported:
 
 ```env
-TUYA_LOCAL_KEYS='first_local_key_with_#_character,second_local_key'
+TUYA_LOCAL_KEYS='abc#defghijklmno,1234567890abcdef'
 ```
 
-Do not add a backslash before `#`; it would become part of the key. The
-application removes the one pair of outer quotes before splitting the list.
+Do not add a backslash before `#`; it would become part of the key. Lists use
+CSV syntax, so an individual value containing a comma can instead be wrapped
+in double quotes; represent a literal double quote within that field as `""`.
 
 `TUYA_DEVICE_LABELS` is optional. If omitted, the app uses `bulb 1`, `bulb 2`,
 and so on. Supported protocol versions are 3.1 through 3.5. Each device ID, IP,

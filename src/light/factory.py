@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from src.config import ConfigError, env_csv
 
 from .base import GroupLightController, LightController
-from .constants import SUPPORTED_TUYA_PROTOCOL_VERSIONS
+from .constants import SUPPORTED_TUYA_PROTOCOL_VERSIONS, TINYTUYA_LOCAL_KEY_LENGTH
 from .enums import TinyTuyaEnvVar
 from .tiny_tuya import TinyTuyaLightController
 
@@ -57,6 +57,14 @@ def configured_tinytuya_devices() -> list[TinyTuyaDeviceConfig]:
             raise ConfigError(
                 f"{name} must match the number of entries in "
                 f"{TinyTuyaEnvVar.DEVICE_IDS}"
+            )
+
+    local_keys = fields[TinyTuyaEnvVar.LOCAL_KEYS]
+    for index, local_key in enumerate(local_keys, start=1):
+        if len(local_key) != TINYTUYA_LOCAL_KEY_LENGTH:
+            raise ConfigError(
+                f"TUYA_LOCAL_KEYS entry {index} must contain exactly "
+                f"{TINYTUYA_LOCAL_KEY_LENGTH} characters"
             )
 
     versions = fields[TinyTuyaEnvVar.PROTOCOL_VERSIONS]

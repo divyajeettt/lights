@@ -19,7 +19,9 @@ def configure_devices(monkeypatch, count: int = 1) -> None:
     monkeypatch.setenv(
         "TUYA_DEVICE_IPS", ",".join(f"192.168.1.{index}" for index in indexes)
     )
-    monkeypatch.setenv("TUYA_LOCAL_KEYS", ",".join(f"key-{index}" for index in indexes))
+    monkeypatch.setenv(
+        "TUYA_LOCAL_KEYS", ",".join(f"test-key-{index:07d}" for index in indexes)
+    )
     monkeypatch.setenv("TUYA_PROTOCOL_VERSIONS", ",".join("3.3" for _ in indexes))
 
 
@@ -49,8 +51,12 @@ def test_configured_tinytuya_devices_parses_parallel_values(monkeypatch) -> None
     monkeypatch.setenv("TUYA_DEVICE_LABELS", "desk,floor")
 
     assert configured_tinytuya_devices() == [
-        TinyTuyaDeviceConfig("device-1", "192.168.1.1", "key-1", 3.3, "desk"),
-        TinyTuyaDeviceConfig("device-2", "192.168.1.2", "key-2", 3.5, "floor"),
+        TinyTuyaDeviceConfig(
+            "device-1", "192.168.1.1", "test-key-0000001", 3.3, "desk"
+        ),
+        TinyTuyaDeviceConfig(
+            "device-2", "192.168.1.2", "test-key-0000002", 3.5, "floor"
+        ),
     ]
 
 
@@ -73,7 +79,7 @@ def test_build_light_controller_builds_single_local_backend(monkeypatch) -> None
     assert built[0].kwargs == {
         "device_id": "device-1",
         "address": "192.168.1.1",
-        "local_key": "key-1",
+        "local_key": "test-key-0000001",
         "protocol_version": 3.3,
         "label": "bulb 1",
     }
@@ -127,6 +133,14 @@ def test_build_light_controller_rejects_unsupported_protocol(monkeypatch) -> Non
     monkeypatch.setenv("TUYA_PROTOCOL_VERSIONS", "2.1")
 
     with pytest.raises(ConfigError, match="TUYA_PROTOCOL_VERSIONS entry 1"):
+        build_light_controller()
+
+
+def test_build_light_controller_rejects_invalid_local_key_length(monkeypatch) -> None:
+    configure_devices(monkeypatch)
+    monkeypatch.setenv("TUYA_LOCAL_KEYS", "short")
+
+    with pytest.raises(ConfigError, match="TUYA_LOCAL_KEYS entry 1"):
         build_light_controller()
 
 

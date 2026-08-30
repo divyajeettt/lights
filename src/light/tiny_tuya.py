@@ -34,13 +34,16 @@ class TinyTuyaLightController(SingleLightController):
         return message.replace(self._local_key, "[redacted]")
 
     def _call(self, operation: str, action: Callable[[], Any]) -> Any:
+        failure_message = None
         try:
             result = action()
         except Exception as exc:
-            message = self._redact(str(exc))
+            failure_message = self._redact(str(exc))
+
+        if failure_message is not None:
             raise RuntimeError(
-                f"TinyTuya {operation} failed for {self.label}: {message}"
-            ) from exc
+                f"TinyTuya {operation} failed for {self.label}: {failure_message}"
+            ) from None
 
         if isinstance(result, dict) and result.get("Error"):
             error = self._redact(str(result["Error"]))
