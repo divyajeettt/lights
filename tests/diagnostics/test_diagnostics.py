@@ -129,6 +129,64 @@ def test_run_diagnostics_reports_spotify_authentication_failure(
     assert "Overall: FAILED" in captured.out
 
 
+def test_run_diagnostics_returns_configuration_exit_for_spotify_config(
+    monkeypatch, capsys
+) -> None:
+    def invalid_spotify_configuration():
+        raise ConfigError("Missing required environment variable: SPOTIFY_CLIENT_ID")
+
+    monkeypatch.setattr(diagnostics, "configured_tinytuya_devices", lambda: [DEVICE])
+    monkeypatch.setattr(diagnostics, "_check_device", lambda _device: [])
+    monkeypatch.setattr(diagnostics, "build_spotify", invalid_spotify_configuration)
+
+    result = diagnostics.run_diagnostics()
+
+    captured = capsys.readouterr()
+    assert result == 2
+    assert "[FAIL] Spotify authentication" in captured.out
+    assert "[SKIP] Album-art access" in captured.out
+    assert "Overall: CONFIGURATION ERROR" in captured.out
+
+
+def test_run_diagnostics_returns_configuration_exit_for_invalid_ip(
+    monkeypatch, capsys
+) -> None:
+    invalid_ip_device = TinyTuyaDeviceConfig(
+        device_id=DEVICE.device_id,
+        address="not-an-ip",
+        local_key=DEVICE.local_key,
+        protocol_version=DEVICE.protocol_version,
+        label=DEVICE.label,
+    )
+
+    class ReadOnlyController:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+        def read_state(self):
+            return {"is_on": True}
+
+    monkeypatch.setattr(
+        diagnostics, "configured_tinytuya_devices", lambda: [invalid_ip_device]
+    )
+    monkeypatch.setattr(diagnostics, "TinyTuyaLightController", ReadOnlyController)
+    monkeypatch.setattr(
+        diagnostics, "build_spotify", lambda: StubSpotify(playback_payload())
+    )
+    monkeypatch.setattr(
+        diagnostics,
+        "album_palette_from_url",
+        lambda _url, *, count: ([(1, 2, 3)] * count, False),
+    )
+
+    result = diagnostics.run_diagnostics()
+
+    captured = capsys.readouterr()
+    assert result == 2
+    assert "[FAIL] Tuya desk IP reachability: 'not-an-ip'" in captured.out
+    assert "Overall: CONFIGURATION ERROR" in captured.out
+
+
 def test_check_device_only_reads_state(monkeypatch) -> None:
     calls = []
 

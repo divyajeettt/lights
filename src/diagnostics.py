@@ -20,6 +20,7 @@ class DiagnosticResult:
     component: str
     status: DiagnosticStatus
     detail: str
+    configuration_error: bool = False
 
 
 def _safe_error(exc: Exception, secrets: tuple[str, ...] = ()) -> str:
@@ -39,6 +40,7 @@ def _check_reachability(device: TinyTuyaDeviceConfig) -> DiagnosticResult:
             component,
             DiagnosticStatus.FAIL,
             f"{device.address!r} is not a valid IP address",
+            configuration_error=True,
         )
 
     try:
@@ -113,6 +115,20 @@ def _check_spotify(
     try:
         spotify = spotify_factory()
         playback = spotify.currently_playing()
+    except ConfigError as exc:
+        return [
+            DiagnosticResult(
+                "Spotify authentication",
+                DiagnosticStatus.FAIL,
+                _safe_error(exc),
+                configuration_error=True,
+            ),
+            DiagnosticResult(
+                "Album-art access",
+                DiagnosticStatus.SKIP,
+                "Spotify configuration is invalid",
+            ),
+        ]
     except Exception as exc:
         return [
             DiagnosticResult(
@@ -186,17 +202,16 @@ def run_diagnostics() -> int:
     """Run all setup checks without changing bulb color or power."""
 
     results: list[DiagnosticResult] = []
-    configuration_failed = False
     devices: list[TinyTuyaDeviceConfig] = []
     try:
         devices = configured_tinytuya_devices()
     except ConfigError as exc:
-        configuration_failed = True
         results.append(
             DiagnosticResult(
                 "Parallel Tuya configuration",
                 DiagnosticStatus.FAIL,
                 _safe_error(exc),
+                configuration_error=True,
             )
         )
     else:
@@ -228,7 +243,7 @@ def run_diagnostics() -> int:
         f"{counts[DiagnosticStatus.SKIP]} skipped"
     )
 
-    if configuration_failed:
+    if any(result.configuration_error for result in results):
         print("Overall: CONFIGURATION ERROR")
         return 2
     if any(result.status != DiagnosticStatus.PASS for result in results):
