@@ -252,6 +252,11 @@ sending a color through TinyTuya, the app applies its HSV brightness and
 saturation policy so local control retains the visual behavior of the former
 backend.
 
+Commands for multiple bulbs run concurrently, with a 10-second timeout for
+each bulb. A slow or unreachable bulb therefore does not delay commands sent
+to the other bulbs. If any command fails or times out, the final error includes
+the label and failure for every affected bulb.
+
 Automatic shutdown switching is best effort. It cannot run if the process is
 force-killed, the Mac sleeps, or a bulb is unreachable.
 
