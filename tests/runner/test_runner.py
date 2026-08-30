@@ -70,6 +70,44 @@ def test_run_watcher_returns_rate_limit_error_code_once(capsys) -> None:
     assert "Spotify rate limited the request" in captured.err
 
 
+def test_run_watcher_returns_spotify_error_code_once(capsys) -> None:
+    spotify = StubSpotify([RuntimeError("Spotify request failed")])
+
+    result = run_watcher(
+        spotify=spotify,
+        controller=None,
+        poll_seconds=0.0,
+        dry_run_once=True,
+    )
+
+    captured = capsys.readouterr()
+    assert result == 1
+    assert "Error: Spotify request failed" in captured.err
+
+
+def test_run_watcher_returns_album_art_error_code_once(monkeypatch, capsys) -> None:
+    spotify = StubSpotify([playback_payload()])
+    original = __import__("src.runner", fromlist=["album_palette_from_url"])
+    monkeypatch.setattr(
+        original,
+        "album_palette_from_url",
+        lambda _url, count: (_ for _ in ()).throw(
+            RuntimeError("album art processing failed")
+        ),
+    )
+
+    result = run_watcher(
+        spotify=spotify,
+        controller=None,
+        poll_seconds=0.0,
+        dry_run_once=True,
+    )
+
+    captured = capsys.readouterr()
+    assert result == 1
+    assert "Error: album art processing failed" in captured.err
+
+
 def test_run_watcher_applies_track_once_without_controller(capsys) -> None:
     spotify = StubSpotify([playback_payload()])
 

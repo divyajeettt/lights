@@ -160,6 +160,8 @@ def _run_watcher_loop(
         except Exception as exc:
             # Keep the watcher alive across transient API failures.
             print(f"Error: {exc}", file=sys.stderr)
+            if dry_run_once:
+                return 1
         if dry_run_once:
             return 0
         time.sleep(poll_seconds)

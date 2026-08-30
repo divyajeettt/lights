@@ -204,6 +204,9 @@ Process the current Spotify track once without changing any bulbs:
 python main.py --dry-run-once
 ```
 
+The command exits with a nonzero status if Spotify access or album-art
+processing fails, so it can be used safely in automation.
+
 Continuously follow the current track:
 
 ```sh
