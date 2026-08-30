@@ -2,9 +2,11 @@ import pytest
 
 from src.config import (
     ConfigError,
+    env,
     env_bool,
     env_csv,
     env_float,
+    load_dotenv,
     validate_spotify_client_id,
 )
 
@@ -38,11 +40,33 @@ def test_env_csv_parses_comma_separated_values(monkeypatch) -> None:
     assert env_csv("DEVICE_IDS") == ["first", "second"]
 
 
+def test_env_csv_supports_quoted_delimiters_and_quotes(monkeypatch) -> None:
+    monkeypatch.setenv("DEVICE_IDS", '"first,device","second""device"')
+
+    assert env_csv("DEVICE_IDS") == ["first,device", 'second"device']
+
+
+def test_env_csv_supports_legacy_single_quoted_list(monkeypatch) -> None:
+    monkeypatch.setenv("DEVICE_IDS", "'first, second'")
+
+    assert env_csv("DEVICE_IDS") == ["first", "second"]
+
+
 def test_env_csv_rejects_empty_items(monkeypatch) -> None:
     monkeypatch.setenv("DEVICE_IDS", "first,,second")
 
     with pytest.raises(ConfigError, match="DEVICE_IDS"):
         env_csv("DEVICE_IDS")
+
+
+def test_load_dotenv_removes_only_one_matched_quote_pair(monkeypatch, tmp_path) -> None:
+    monkeypatch.delenv("QUOTED_VALUE", raising=False)
+    env_path = tmp_path / ".env"
+    env_path.write_text("QUOTED_VALUE='''value'''\n")
+
+    load_dotenv(str(env_path))
+
+    assert env("QUOTED_VALUE") == "''value''"
 
 
 def test_validate_spotify_client_id_rejects_placeholder() -> None:
