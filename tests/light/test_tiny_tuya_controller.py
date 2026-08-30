@@ -78,6 +78,17 @@ def test_controller_sets_power(monkeypatch) -> None:
     assert device.power_calls == [True, False]
 
 
+def test_controller_reads_state_without_changing_bulb(monkeypatch) -> None:
+    controller, device = make_controller(monkeypatch)
+    device.current_state = {"is_on": False, "brightness": 500}
+
+    state = controller.read_state()
+
+    assert state == {"is_on": False, "brightness": 500}
+    assert device.hsv_colours == []
+    assert device.power_calls == []
+
+
 @pytest.mark.parametrize(
     "is_on,expected_power",
     [(True, False), (False, True)],

@@ -185,11 +185,24 @@ authoritative local-control test.
 Then test the application in this order:
 
 ```sh
+python main.py --check
 python main.py --dry-run-once
 python main.py --set-rgb '#00aaff'
 python main.py --switch
 python main.py --auto-switch
 ```
+
+`--check` is a comprehensive read-only diagnostic. It validates Spotify
+authentication, aligned TinyTuya device settings, TCP reachability on port
+6668, configured protocol compatibility, a state read from every bulb, and
+album-art download and decoding. It does not change bulb colors or power.
+
+Each check prints `PASS`, `FAIL`, or `SKIP`, followed by an overall summary.
+The command returns `0` only when every required check passes, `1` when live
+authentication, network, device, or album-art checks are unsuccessful, and `2`
+when configuration is missing or invalid. Spotify authentication can pass when
+nothing is playing, but album-art access is then skipped and the command
+returns `1`; start a track and run the check again.
 
 If a bulb fails, confirm that it is powered, its IP is reachable from the Mac,
 the router has not reassigned the address, and the ID/key/version were copied
@@ -197,6 +210,12 @@ from the same device. Also confirm the bulb has not been reset or re-paired
 since the key was collected.
 
 ## Run
+
+Validate the complete setup without changing bulb color or power:
+
+```sh
+python main.py --check
+```
 
 Process the current Spotify track once without changing any bulbs:
 
@@ -377,7 +396,7 @@ Tests mock TinyTuya devices, so they do not contact bulbs or need real keys.
 They cover configuration validation, controller construction, RGB and power
 commands, state-based toggling, local-key redaction, group behavior, Spotify
 authorization/request helpers, album-art extraction, runner behavior, and CLI
-validation.
+validation, including the read-only diagnostic summaries and exit statuses.
 
 The automated suite does not prove live connectivity. Complete the manual
 `--set-rgb`, `--switch`, and `--auto-switch` checks on the same LAN as the

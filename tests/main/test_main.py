@@ -137,6 +137,18 @@ def test_main_dry_run_once_calls_watcher_without_controller(
     }
 
 
+def test_main_check_runs_diagnostics_only(monkeypatch, tmp_path) -> None:
+    def fail_build_spotify():
+        raise AssertionError("--check should delegate to diagnostics")
+
+    monkeypatch.setattr(cli, "build_spotify", fail_build_spotify)
+    monkeypatch.setattr(cli, "run_diagnostics", lambda: 1)
+
+    result = run_cli(monkeypatch, tmp_path, ["--check"])
+
+    assert result == 1
+
+
 def test_main_set_rgb_uses_light_controller_without_spotify(
     monkeypatch, tmp_path
 ) -> None:
@@ -261,6 +273,14 @@ def test_main_rejects_auto_switch_with_switch(monkeypatch, tmp_path, capsys) -> 
     captured = capsys.readouterr()
     assert result == 1
     assert "Error: --auto-switch cannot be combined with --switch" in captured.err
+
+
+def test_main_rejects_check_with_dry_run_once(monkeypatch, tmp_path, capsys) -> None:
+    result = run_cli(monkeypatch, tmp_path, ["--check", "--dry-run-once"])
+
+    captured = capsys.readouterr()
+    assert result == 1
+    assert "Error: --check cannot be combined with --dry-run-once" in captured.err
 
 
 def test_main_preserves_late_config_error_exit(monkeypatch, tmp_path, capsys) -> None:
