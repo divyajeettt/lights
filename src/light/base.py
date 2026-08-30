@@ -1,6 +1,7 @@
 """Shared light controller interface."""
 
 from concurrent.futures import Future, ThreadPoolExecutor, wait
+from threading import Lock
 from typing import Callable, Final, Protocol, Sequence
 
 from src.models import Color
@@ -50,6 +51,7 @@ class GroupLightController:
         if not controllers:
             raise ValueError("At least one light controller is required")
         self.controllers = list(controllers)
+        self._operation_locks = [Lock() for _controller in self.controllers]
 
     @property
     def light_count(self) -> int:
@@ -71,9 +73,18 @@ class GroupLightController:
         operation: Callable[[LightController, int], None],
         failure_message: str,
     ) -> None:
+        def run_for_controller(controller: LightController, index: int) -> None:
+            operation_lock = self._operation_locks[index]
+            if not operation_lock.acquire(blocking=False):
+                raise RuntimeError("previous operation is still running")
+            try:
+                operation(controller, index)
+            finally:
+                operation_lock.release()
+
         executor = ThreadPoolExecutor(max_workers=self.light_count)
         futures: list[Future[None]] = [
-            executor.submit(operation, controller, index)
+            executor.submit(run_for_controller, controller, index)
             for index, controller in enumerate(self.controllers)
         ]
         _, unfinished = wait(

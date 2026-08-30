@@ -109,6 +109,47 @@ def test_group_light_controller_times_out_only_slow_light(monkeypatch) -> None:
     assert floor.rgb_calls == [(4, 5, 6)]
 
 
+def test_group_light_controller_does_not_overlap_timed_out_operations(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        light_base_module,
+        "GROUP_LIGHT_OPERATION_TIMEOUT_SECONDS",
+        0.01,
+    )
+    release_first_command = Event()
+    first_command_finished = Event()
+
+    class InitiallyBlockedController(StubLightController):
+        def set_rgb(self, rgb) -> None:
+            if not self.rgb_calls:
+                release_first_command.wait()
+                self.rgb_calls.append(rgb)
+                first_command_finished.set()
+                return
+            self.rgb_calls.append(rgb)
+
+    desk = InitiallyBlockedController("desk")
+    floor = StubLightController("floor")
+    controller = GroupLightController([desk, floor])
+
+    with pytest.raises(RuntimeError, match="desk: timed out"):
+        controller.set_rgbs([(1, 2, 3), (4, 5, 6)])
+
+    with pytest.raises(
+        RuntimeError,
+        match="desk: previous operation is still running",
+    ):
+        controller.set_rgbs([(7, 8, 9), (10, 11, 12)])
+
+    release_first_command.set()
+    assert first_command_finished.wait(timeout=0.5)
+    controller.set_rgbs([(13, 14, 15), (16, 17, 18)])
+
+    assert desk.rgb_calls == [(1, 2, 3), (13, 14, 15)]
+    assert floor.rgb_calls == [(4, 5, 6), (10, 11, 12), (16, 17, 18)]
+
+
 def test_group_light_controller_aggregates_errors_in_label_order() -> None:
     desk = StubLightController("desk", fail=True)
     floor = StubLightController("floor", fail=True)
