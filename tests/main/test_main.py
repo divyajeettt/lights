@@ -176,6 +176,29 @@ def test_main_set_rgb_only_uses_light_controller(monkeypatch, tmp_path) -> None:
     assert controller.calls == [(0, 170, 255)]
 
 
+def test_main_set_rgb_targets_exact_bulb_label(monkeypatch, tmp_path, capsys) -> None:
+    controller = StubController()
+    labels = []
+
+    def build_controller(*, label):
+        labels.append(label)
+        return controller
+
+    monkeypatch.setattr(cli, "build_light_controller", build_controller)
+
+    result = run_cli(
+        monkeypatch,
+        tmp_path,
+        ["--set-rgb", "#00aaff", "--bulb-label", "desk bulb"],
+    )
+
+    captured = capsys.readouterr()
+    assert result == 0
+    assert labels == ["desk bulb"]
+    assert controller.calls == [(0, 170, 255)]
+    assert "Setting bulb 'desk bulb' to #00aaff" in captured.out
+
+
 def test_main_switch_uses_light_controller_without_spotify(
     monkeypatch, tmp_path
 ) -> None:
@@ -199,6 +222,18 @@ def test_main_set_rgb_rejects_invalid_color(monkeypatch, tmp_path, capsys) -> No
     captured = capsys.readouterr()
     assert result == 1
     assert "Error: RGB color must look like #00aaff" in captured.err
+
+
+def test_main_rejects_bulb_label_without_set_rgb(monkeypatch, tmp_path, capsys) -> None:
+    result = run_cli(
+        monkeypatch,
+        tmp_path,
+        ["--bulb-label", "desk bulb"],
+    )
+
+    captured = capsys.readouterr()
+    assert result == 1
+    assert "Error: --bulb-label can only be used with --set-rgb" in captured.err
 
 
 def test_main_rejects_set_rgb_with_dry_run_once(monkeypatch, tmp_path, capsys) -> None:

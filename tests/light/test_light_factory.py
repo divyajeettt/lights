@@ -109,6 +109,50 @@ def test_build_light_controller_builds_group_with_labels(monkeypatch) -> None:
     assert controller.light_labels == ("desk", "floor")
 
 
+def test_build_light_controller_builds_only_exact_label_match(monkeypatch) -> None:
+    configure_devices(monkeypatch, count=2)
+    monkeypatch.setenv("TUYA_DEVICE_LABELS", "Desk Bulb,Floor Bulb")
+    built = []
+
+    def make_controller(**kwargs):
+        controller = StubSingleController(**kwargs)
+        built.append(controller)
+        return controller
+
+    monkeypatch.setattr(
+        light_factory_module, "TinyTuyaLightController", make_controller
+    )
+
+    controller = build_light_controller(label="Desk Bulb")
+
+    assert controller is built[0]
+    assert len(built) == 1
+    assert built[0].kwargs["device_id"] == "device-1"
+    assert controller.light_labels == ("Desk Bulb",)
+
+
+def test_build_light_controller_requires_exact_label_match(monkeypatch) -> None:
+    configure_devices(monkeypatch, count=2)
+    monkeypatch.setenv("TUYA_DEVICE_LABELS", "Desk Bulb,Floor Bulb")
+
+    with pytest.raises(
+        ValueError,
+        match="No configured bulb has the exact label 'desk bulb'",
+    ):
+        build_light_controller(label="desk bulb")
+
+
+def test_build_light_controller_rejects_duplicate_target_label(monkeypatch) -> None:
+    configure_devices(monkeypatch, count=2)
+    monkeypatch.setenv("TUYA_DEVICE_LABELS", "desk,desk")
+
+    with pytest.raises(
+        ConfigError,
+        match="TUYA_DEVICE_LABELS contains duplicate label 'desk'",
+    ):
+        build_light_controller(label="desk")
+
+
 @pytest.mark.parametrize(
     "name,value",
     [

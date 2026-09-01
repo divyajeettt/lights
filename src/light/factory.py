@@ -112,7 +112,16 @@ def configured_tinytuya_devices() -> list[TinyTuyaDeviceConfig]:
     return [record.normalized() for record in records]
 
 
-def build_light_controller() -> LightController:
+def build_light_controller(label: str | None = None) -> LightController:
+    configs = configured_tinytuya_devices()
+
+    if label is not None:
+        configs = list(filter(lambda config: config.label == label, configs))
+        if not configs:
+            raise ValueError(f"No configured bulb has the exact label {label!r}")
+        if len(configs) > 1:
+            raise ConfigError(f"TUYA_DEVICE_LABELS contains duplicate label {label!r}")
+
     controllers = [
         TinyTuyaLightController(
             device_id=config.device_id,
@@ -121,7 +130,7 @@ def build_light_controller() -> LightController:
             protocol_version=config.protocol_version,
             label=config.label,
         )
-        for config in configured_tinytuya_devices()
+        for config in configs
     ]
     if len(controllers) == 1:
         return controllers[0]

@@ -188,6 +188,7 @@ Then test the application in this order:
 python main.py --check
 python main.py --dry-run-once
 python main.py --set-rgb '#00aaff'
+python main.py --set-rgb '#00aaff' --bulb-label 'desk bulb'
 python main.py --switch
 python main.py --auto-switch
 ```
@@ -238,12 +239,21 @@ Switch bulbs on at startup and off during normal or `CTRL+C` shutdown:
 python main.py --auto-switch
 ```
 
-Set a manual color or toggle every configured bulb:
+Set a manual color on every configured bulb, set only the bulb whose label
+matches exactly, or toggle every configured bulb:
 
 ```sh
 python main.py --set-rgb '#00aaff'
+python main.py --set-rgb '#00aaff' --bulb-label 'desk bulb'
 python main.py --switch
 ```
+
+`--bulb-label` is accepted only with `--set-rgb`. Its value is case-sensitive
+and must exactly match one entry in
+`TUYA_DEVICE_LABELS` (or a generated label such as `bulb 1` when labels are
+omitted). Quote labels that contain spaces. A targeted command contacts only
+the matching bulb. An unknown or duplicated target label returns a nonzero
+status without changing any bulb.
 
 The app polls Spotify at a fixed internal interval. It extracts an ordered
 album-art palette with `colorgram.py`, skips colors that are too close to
@@ -342,6 +352,7 @@ On the new network:
 
    ```sh
    python main.py --set-rgb '#00aaff'
+   python main.py --set-rgb '#00aaff' --bulb-label 'desk bulb'
    python main.py --switch
    python main.py --auto-switch
    ```
