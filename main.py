@@ -17,8 +17,12 @@ POLL_SECONDS: Final[float] = 1.0
 LIGHT_COLOR_MODE: Final[LightColorMode] = LightColorMode.ALBUM_PALETTE
 
 
-def _set_manual_rgb(rgb: Color) -> None:
-    controller = build_light_controller()
+def _set_manual_rgb(rgb: Color, label: str | None = None) -> None:
+    controller = (
+        build_light_controller()
+        if label is None
+        else build_light_controller(label=label)
+    )
     controller.set_rgb(rgb)
 
 
@@ -43,7 +47,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--set-rgb",
-        help="Set the bulb to a manual RGB color like #00aaff and exit.",
+        metavar="COLOR",
+        help="Set bulbs to a manual RGB color like #00aaff and exit.",
+    )
+    parser.add_argument(
+        "--bulb-label",
+        metavar="LABEL",
+        help="With --set-rgb, update only the bulb with this exact label.",
     )
     parser.add_argument(
         "--switch",
@@ -70,7 +80,7 @@ def main() -> int:
             for option, selected in (
                 ("--dry-run-once", args.dry_run_once),
                 ("--check", args.check),
-                ("--set-rgb", args.set_rgb),
+                ("--set-rgb", args.set_rgb is not None),
                 ("--switch", args.switch),
                 ("--auto-switch", args.auto_switch),
             )
@@ -80,11 +90,15 @@ def main() -> int:
             raise ValueError(
                 f"{selected_actions[1]} cannot be combined with {selected_actions[0]}"
             )
+        if args.set_rgb is None and args.bulb_label is not None:
+            raise ValueError("--bulb-label can only be used with --set-rgb")
 
-        if args.set_rgb:
+        if args.set_rgb is not None:
             rgb = parse_rgb(args.set_rgb)
-            print(f"Setting bulb(s) to {rgb_hex(rgb)}")
-            _set_manual_rgb(rgb)
+            label = args.bulb_label
+            target = f"bulb {label!r}" if label is not None else "bulb(s)"
+            print(f"Setting {target} to {rgb_hex(rgb)}")
+            _set_manual_rgb(rgb, label=label)
             return 0
 
         if args.check:
