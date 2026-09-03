@@ -80,7 +80,7 @@ def main() -> int:
             for option, selected in (
                 ("--dry-run-once", args.dry_run_once),
                 ("--check", args.check),
-                ("--set-rgb", args.set_rgb),
+                ("--set-rgb", args.set_rgb is not None),
                 ("--switch", args.switch),
                 ("--auto-switch", args.auto_switch),
             )
@@ -93,7 +93,7 @@ def main() -> int:
         if args.set_rgb is None and args.bulb_label is not None:
             raise ValueError("--bulb-label can only be used with --set-rgb")
 
-        if args.set_rgb:
+        if args.set_rgb is not None:
             rgb = parse_rgb(args.set_rgb)
             label = args.bulb_label
             target = f"bulb {label!r}" if label is not None else "bulb(s)"

@@ -224,6 +224,25 @@ def test_main_set_rgb_rejects_invalid_color(monkeypatch, tmp_path, capsys) -> No
     assert "Error: RGB color must look like #00aaff" in captured.err
 
 
+def test_main_set_rgb_rejects_empty_color_without_building_controller(
+    monkeypatch, tmp_path, capsys
+) -> None:
+    def fail_build_light_controller(*args, **kwargs):
+        raise AssertionError("invalid --set-rgb should not build a controller")
+
+    monkeypatch.setattr(cli, "build_light_controller", fail_build_light_controller)
+
+    result = run_cli(
+        monkeypatch,
+        tmp_path,
+        ["--set-rgb", "", "--bulb-label", "desk bulb"],
+    )
+
+    captured = capsys.readouterr()
+    assert result == 1
+    assert "Error: RGB color must look like #00aaff" in captured.err
+
+
 def test_main_rejects_bulb_label_without_set_rgb(monkeypatch, tmp_path, capsys) -> None:
     result = run_cli(
         monkeypatch,
